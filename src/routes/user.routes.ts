@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { getUsers } from "../controllers/user.controller";
+import { getUsers, getUserById } from "../controllers/user.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 
 const router = Router();
@@ -10,9 +10,9 @@ const router = Router();
  * @access  Private
  */
 router.get("/", authenticate, getUsers);
+router.get("/:id", authenticate, getUserById);
 
 // Futuras rutas:
-// router.get("/:id", authenticate, getUserById);
 // router.put("/:id", authenticate, updateUser);
 // router.delete("/:id", authenticate, authorize("admin"), deleteUser);
 
