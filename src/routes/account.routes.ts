@@ -9,6 +9,8 @@ import {
   getTotalBalance,
 } from "../controllers/account.controller";
 import { authenticate } from "../middlewares/auth.middleware";
+import { validate } from "../middlewares/validate.middleware";
+import { createAccountSchema, updateAccountSchema } from "../validators/account.validators";
 
 const router = Router();
 
@@ -39,14 +41,14 @@ router.get("/:id", authenticate, getAccountById);
  * @desc    Crear una nueva cuenta
  * @access  Private
  */
-router.post("/", authenticate, createAccount);
+router.post("/", authenticate, validate(createAccountSchema), createAccount);
 
 /**
  * @route   PUT /api/accounts/:id
  * @desc    Actualizar una cuenta existente
  * @access  Private
  */
-router.put("/:id", authenticate, updateAccount);
+router.put("/:id", authenticate, validate(updateAccountSchema), updateAccount);
 
 /**
  * @route   DELETE /api/accounts/:id

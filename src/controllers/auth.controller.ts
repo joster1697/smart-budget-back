@@ -15,28 +15,6 @@ export const register = async (req: Request, res: Response) => {
   try {
     const { name, email, password } = req.body;
 
-    // Validar que todos los campos estén presentes
-    if (!name || !email || !password) {
-      return res.status(400).json({
-        message: 'Todos los campos son requeridos (name, email, password)'
-      });
-    }
-
-    // Validar formato de email
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return res.status(400).json({
-        message: 'El formato del email es inválido'
-      });
-    }
-
-    // Validar longitud de contraseña
-    if (password.length < 6) {
-      return res.status(400).json({
-        message: 'La contraseña debe tener al menos 6 caracteres'
-      });
-    }
-
     // Verificar si el usuario ya existe
     const existingUser = await UserService.getUserByEmail(email);
     if (existingUser) {
@@ -77,13 +55,6 @@ export const login = async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
-    // Validar que todos los campos estén presentes
-    if (!email || !password) {
-      return res.status(400).json({
-        message: 'Email y contraseña son requeridos'
-      });
-    }
-
     // Intentar hacer login
     const result = await AuthService.login(email, password);
 
@@ -111,13 +82,6 @@ export const login = async (req: Request, res: Response) => {
 export const refresh = async (req: Request, res: Response) => {
   try {
     const { refreshToken } = req.body;
-
-    // Validar que el refreshToken esté presente
-    if (!refreshToken) {
-      return res.status(400).json({
-        message: 'Refresh token es requerido'
-      });
-    }
 
     // Intentar renovar los tokens
     const tokens = await AuthService.refresh(refreshToken);
