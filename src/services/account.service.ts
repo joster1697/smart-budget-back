@@ -6,6 +6,7 @@ import { User } from "../database/models/user";
 export interface IAccountCreate {
   user_id: string;
   balance: number;
+  name: string;
   account_linked?: string;
   type: string;
 }
@@ -77,6 +78,7 @@ export class AccountService {
     // Crear la cuenta
     const accountToCreate: AccountCreationAttributes = {
       user_id: accountData.user_id,
+      name: accountData.name,
       balance: accountData.balance,
       account_linked: accountData.account_linked,
       type: accountData.type,
