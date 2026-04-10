@@ -60,16 +60,15 @@ export class CategoryService {
   ) {
     // Buscar la categoria y verificar que pertenece al usuario
     const category = await Category.findOne({
-      where: { 
-        id: categoryId, 
-        user_id: userId 
+      where: {
+        id: categoryId,
+        user_id: userId,
       },
     });
 
-    if(!category) {
+    if (!category) {
       throw new Error("Categoria no encontrada o no autorizada");
     }
-    
 
     //Actualizar la categoria
     await category.update(updateData);
@@ -85,13 +84,11 @@ export class CategoryService {
       },
     });
 
-    if(!category) {
+    if (!category) {
       throw new Error("Categoria no encontrada o no autorizada");
     }
 
     await category.destroy();
-    return { message: "Categoria eliminada exitosamente" }
+    return { message: "Categoria eliminada exitosamente" };
   }
-
-  
 }
