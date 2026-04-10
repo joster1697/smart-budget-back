@@ -84,7 +84,9 @@ export const createAccount = async (req: AuthRequest, res: Response) => {
     }
 
     if (!type) {
-      return res.status(400).json({ message: "El tipo de cuenta es requerido" });
+      return res
+        .status(400)
+        .json({ message: "El tipo de cuenta es requerido" });
     }
 
     // Validar que el balance sea un número
@@ -139,13 +141,14 @@ export const updateAccount = async (req: AuthRequest, res: Response) => {
 
     const updateData: any = {};
     if (balance !== undefined) updateData.balance = Number(balance);
-    if (account_linked !== undefined) updateData.account_linked = account_linked;
+    if (account_linked !== undefined)
+      updateData.account_linked = account_linked;
     if (type !== undefined) updateData.type = type;
 
     const updatedAccount = await AccountService.updateAccount(
       id,
       userId,
-      updateData
+      updateData,
     );
 
     res.status(200).json({
