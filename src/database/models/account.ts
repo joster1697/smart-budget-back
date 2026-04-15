@@ -17,6 +17,7 @@ import { Transaction } from './transaction';
 export type AccountCreationAttributes = Optional<{
   id?: string;
   user_id: string;
+  name: string;
   balance: number;
   account_linked?: string;
   type: string;
@@ -36,6 +37,10 @@ export class Account extends Model<Account, AccountCreationAttributes> {
   @AllowNull(false)
   @Column(DataType.UUID)
   user_id!: string;
+
+  @AllowNull(false)
+  @Column(DataType.STRING)
+  name!: string;
 
   @AllowNull(false)
   @Column(DataType.DECIMAL)

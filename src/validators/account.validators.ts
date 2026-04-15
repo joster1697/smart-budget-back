@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 export const createAccountSchema = z.object({
+  name: z.string().min(1, 'El nombre de la cuenta es requerido'),
   balance: z
     .preprocess(
       (val) => (val !== undefined && val !== null ? Number(val) : val),
@@ -14,6 +15,7 @@ export const createAccountSchema = z.object({
 
 export const updateAccountSchema = z
   .object({
+    name: z.string().min(1, 'El nombre de la cuenta no puede estar vacío').optional(),
     balance: z
       .preprocess(
         (val) => (val !== undefined ? Number(val) : undefined),
@@ -26,7 +28,7 @@ export const updateAccountSchema = z
     account_linked: z.string().optional()
   })
   .refine(
-    (data) => data.balance !== undefined || data.type !== undefined || data.account_linked !== undefined,
+    (data) => data.name !== undefined || data.balance !== undefined || data.type !== undefined || data.account_linked !== undefined,
     { message: 'Debe proporcionar al menos un campo para actualizar' }
   );
 
