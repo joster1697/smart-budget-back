@@ -70,30 +70,18 @@ export const getAccountById = async (req: AuthRequest, res: Response) => {
  */
 export const createAccount = async (req: AuthRequest, res: Response) => {
   try {
+    const { name, balance, account_linked, type } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: "Usuario no autenticado" });
-    }
-
-    const { balance, account_linked, type } = req.body;
-
-    // Validaciones
-    if (balance === undefined || balance === null) {
-      return res.status(400).json({ message: "El balance es requerido" });
-    }
-
-    if (!type) {
-      return res.status(400).json({ message: "El tipo de cuenta es requerido" });
-    }
-
-    // Validar que el balance sea un número
-    if (isNaN(balance)) {
-      return res.status(400).json({ message: "El balance debe ser un número" });
+      return res.status(401).json({
+        message: 'No autenticado'
+      });
     }
 
     const accountData = {
       user_id: userId,
+      name,
       balance: Number(balance),
       account_linked,
       type,
@@ -128,16 +116,17 @@ export const updateAccount = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Usuario no autenticado" });
     }
 
-    const { balance, account_linked, type } = req.body;
+    const { name, balance, account_linked, type } = req.body;
 
     // Validar que al menos un campo esté presente
-    if (!balance && !account_linked && !type) {
+    if (!name && !balance && !account_linked && !type) {
       return res.status(400).json({
         message: "Debe proporcionar al menos un campo para actualizar",
       });
     }
 
     const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
     if (balance !== undefined) updateData.balance = Number(balance);
     if (account_linked !== undefined) updateData.account_linked = account_linked;
     if (type !== undefined) updateData.type = type;
