@@ -1,3 +1,4 @@
+import { Op } from "sequelize";
 import { Category } from "../database/models";
 import { User } from "../database/models";
 import { CategoryCreationAttributes } from "../database/models/category";
@@ -16,11 +17,17 @@ export interface ICategoryUpdate {
 export class CategoryService {
   static async getCategoriesByUserId(userId: string) {
     return await Category.findAll({
-      where: { user_id: userId },
+      where: {
+        [Op.or]: [
+          { user_id: userId },
+          { user_id: { [Op.is]: null } },
+        ],
+      } as any,
       include: [
         {
           model: User,
           attributes: ["id", "name", "email"],
+          required: false,
         },
       ],
     });

@@ -12,6 +12,9 @@ services:
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-1.5-flash}
+      - APP_TIMEZONE=${APP_TIMEZONE:-America/Costa_Rica}
     depends_on:
       - mysql
     volumes:

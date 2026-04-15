@@ -3,11 +3,13 @@ import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
 import { initializeDatabase } from "./database/config/sequelize";
+import { errorHandler } from "./middlewares/error.middleware";
 import userRoutes from "./routes/user.routes";
 import authRoutes from "./routes/auth.routes";
 import accountRoutes from "./routes/account.routes";
-import { errorHandler } from "./middlewares/error.middleware";
 import categoryRoutes from "./routes/category.routes";
+import transactionRoutes from "./routes/transaction.routes";
+import agentRoutes from "./routes/agent.routes";
 
 dotenv.config();
 
@@ -29,6 +31,8 @@ async function startServer() {
     app.use("/api/users", userRoutes);
     app.use("/api/accounts", accountRoutes);
     app.use("/api/categories", categoryRoutes);
+    app.use("/api/transactions", transactionRoutes);
+    app.use("/api/agent", agentRoutes);
     // Health Check
     app.get("/health", (req, res) => {
       res.status(200).json({
