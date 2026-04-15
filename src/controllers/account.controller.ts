@@ -128,13 +128,14 @@ export const updateAccount = async (req: AuthRequest, res: Response) => {
     const updateData: any = {};
     if (name !== undefined) updateData.name = name;
     if (balance !== undefined) updateData.balance = Number(balance);
-    if (account_linked !== undefined) updateData.account_linked = account_linked;
+    if (account_linked !== undefined)
+      updateData.account_linked = account_linked;
     if (type !== undefined) updateData.type = type;
 
     const updatedAccount = await AccountService.updateAccount(
       id,
       userId,
-      updateData
+      updateData,
     );
 
     res.status(200).json({

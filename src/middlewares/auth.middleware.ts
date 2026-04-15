@@ -39,6 +39,11 @@ export const authenticate = async (
     try {
       const payload = AuthService.verifyAccessToken(token);
       
+      // Verificar que el payload tenga userId
+      if (!payload.userId) {
+        return res.status(401).json({ message: 'Token inválido: userId faltante' });
+      }
+      
       // Adjuntar la información del usuario al request
       req.user = {
         id: payload.userId,
