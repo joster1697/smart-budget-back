@@ -1,2 +1,2 @@
 require('ts-node/register');
-module.exports = require('./src/database/config/config.js');
+module.exports = require('./src/database/config/config.ts');
