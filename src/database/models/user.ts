@@ -7,24 +7,28 @@ import {
   Default,
   AllowNull,
   Unique,
-  HasMany
-} from 'sequelize-typescript';
-import { Optional } from 'sequelize';
-import { Account } from './account';
-import { Category } from './category';
-import { Transaction } from './transaction';
-import { Budget } from './budget';
+  HasMany,
+} from "sequelize-typescript";
+import { Optional } from "sequelize";
+import { Account } from "./account";
+import { Category } from "./category";
+import { Transaction } from "./transaction";
+import { Budget } from "./budget";
 
-export type UserCreationAttributes = Optional<{
-  id?: string;
-  name: string;
-  email: string;
-  password: string;
-}, 'id'>;
+export type UserCreationAttributes = Optional<
+  {
+    id?: string;
+    telegram_chat_id?: string;
+    name: string;
+    email: string;
+    password: string;
+  },
+  "id"
+>;
 
 @Table({
-  tableName: 'users',
-  timestamps: true
+  tableName: "users",
+  timestamps: true,
 })
 export class User extends Model<User, UserCreationAttributes> {
   @PrimaryKey
@@ -44,6 +48,11 @@ export class User extends Model<User, UserCreationAttributes> {
   @AllowNull(false)
   @Column(DataType.STRING)
   password!: string;
+
+  @Unique
+  @AllowNull(true)
+  @Column(DataType.STRING)
+  telegram_chat_id?: string;
 
   @HasMany(() => Account)
   accounts?: Account[];

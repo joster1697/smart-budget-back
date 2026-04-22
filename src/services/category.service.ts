@@ -3,6 +3,10 @@ import { Category } from "../database/models";
 import { User } from "../database/models";
 import { CategoryCreationAttributes } from "../database/models/category";
 
+export interface CategorySearchCriteria {
+  name?: string;
+}
+
 //Interface para creacion de Categoria
 export interface ICategoryCreate {
   name: string;
@@ -97,5 +101,11 @@ export class CategoryService {
 
     await category.destroy();
     return { message: "Categoria eliminada exitosamente" };
+  }
+
+  static async searchByContext(userId: string, criteria: CategorySearchCriteria) {
+    const where: Record<string, unknown> = { user_id: userId };
+    if (criteria.name) where.name = { [Op.like]: `%${criteria.name}%` };
+    return await Category.findAll({ where, limit: 5 });
   }
 }

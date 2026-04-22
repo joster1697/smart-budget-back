@@ -1,14 +1,16 @@
 // services/transaction.service.ts
+import { Op } from "sequelize";
 import { Account } from "../database/models";
 import { Transaction, TransactionCreationAttributes } from "../database/models/transaction";
 import { User } from "../database/models/user";
+import { TransactionSearchCriteria } from "./ai/ingestion.service";
 
 // Interface para creación de transacciones
 export interface ITransactionCreate {
   user_id: string;
   account_id: string;
   amount: number;
-  category_id: string;
+  category_id?: string;
   type: string;
   description: string;
 }
@@ -133,5 +135,32 @@ export class TransactionService {
 
     await transaction.destroy();
     return true;
+  }
+
+  /**
+   * Busca transacciones del usuario usando criterios semánticos del agente.
+   * Usado para UPDATE y DELETE para identificar la transacción objetivo.
+   */
+  static async searchByContext(userId: string, criteria: TransactionSearchCriteria) {
+    const where: Record<string, unknown> = { user_id: userId };
+
+    if (criteria.merchant) {
+      where.merchant = { [Op.like]: `%${criteria.merchant}%` };
+    }
+    if (criteria.description) {
+      where.description = { [Op.like]: `%${criteria.description}%` };
+    }
+    if (criteria.date) {
+      const start = new Date(criteria.date);
+      const end = new Date(criteria.date);
+      end.setHours(23, 59, 59, 999);
+      where.date = { [Op.between]: [start, end] };
+    }
+
+    return await Transaction.findAll({
+      where: where as any,
+      order: [['date', 'DESC']],
+      limit: 5,
+    });
   }
 }

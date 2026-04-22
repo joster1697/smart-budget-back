@@ -1,6 +1,12 @@
 // services/account.service.ts
+import { Op } from "sequelize";
 import { Account, AccountCreationAttributes } from "../database/models/account";
 import { User } from "../database/models/user";
+
+export interface AccountSearchCriteria {
+  name?: string;
+  type?: string;
+}
 
 // Interface para creación de cuentas
 export interface IAccountCreate {
@@ -13,6 +19,7 @@ export interface IAccountCreate {
 
 // Interface para actualización de cuentas
 export interface IAccountUpdate {
+  name?: string;
   balance?: number;
   account_linked?: string;
   type?: string;
@@ -162,5 +169,17 @@ export class AccountService {
       total_accounts: accounts.length,
       total_balance: totalBalance,
     };
+  }
+
+  static async searchByContext(userId: string, criteria: AccountSearchCriteria) {
+    const where: Record<string, unknown> = { user_id: userId };
+    if (criteria.name) where.name = { [Op.like]: `%${criteria.name}%` };
+    if (criteria.type) where.type = criteria.type;
+    return await Account.findAll({
+      where,
+      attributes: ['id', 'name', 'type', 'balance'],
+      limit: 5,
+      order: [['updatedAt', 'DESC']],
+    });
   }
 }

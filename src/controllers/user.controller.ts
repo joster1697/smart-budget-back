@@ -51,6 +51,7 @@ export const getUserById = async (req: AuthRequest, res: Response) => {
   }
 };
 
+
 // Futuras funciones:
 // export const updateUser = async (req: AuthRequest, res: Response) => { ... }
 // export const deleteUser = async (req: AuthRequest, res: Response) => { ... }

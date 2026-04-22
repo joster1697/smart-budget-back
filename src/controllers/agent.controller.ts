@@ -3,6 +3,18 @@ import { AuthRequest } from '../middlewares/auth.middleware';
 import { IngestionService } from '../services/ai/ingestion.service';
 import { AudioTranscriptionService } from '../services/ai/audio-transcription.service';
 import { CategoryService } from '../services/category.service';
+import { resolveActions, ResolvedAction } from '../services/channel-processor';
+
+async function processInput(
+  userId: string,
+  input: string,
+  parsedFrom: 'text' | 'audio',
+): Promise<ResolvedAction[]> {
+  const categories = await CategoryService.getCategoriesByUserId(userId);
+  const categoryContext = categories.map((c) => ({ id: c.id, name: c.name ?? '' }));
+  const results = await IngestionService.parseFromText(input, categoryContext, parsedFrom);
+  return resolveActions(userId, results);
+}
 
 export const ingestText = async (req: AuthRequest, res: Response) => {
   try {
@@ -14,14 +26,11 @@ export const ingestText = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'El campo "input" es requerido y no puede estar vacío' });
     }
 
-    const categories = await CategoryService.getCategoriesByUserId(userId);
-    const categoryContext = categories.map((c) => ({ id: c.id, name: c.name ?? '' }));
-
-    const parsed = await IngestionService.parseFromText(input.trim(), categoryContext, 'text');
+    const actions = await processInput(userId, input.trim(), 'text');
 
     return res.status(200).json({
       message: 'Texto procesado exitosamente',
-      data: parsed,
+      actions,
     });
   } catch (error) {
     console.error('Error en ingestText:', error);
@@ -42,22 +51,13 @@ export const ingestAudio = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Se requiere un archivo de audio en el campo "audio"' });
     }
 
-    // Paso 1: transcribir audio a texto
-    const transcription = await AudioTranscriptionService.transcribe(
-      file.buffer,
-      file.mimetype
-    );
-
-    // Paso 2: extraer entidades del texto transcrito
-    const categories = await CategoryService.getCategoriesByUserId(userId);
-    const categoryContext = categories.map((c) => ({ id: c.id, name: c.name ?? '' }));
-
-    const parsed = await IngestionService.parseFromText(transcription, categoryContext, 'audio');
+    const transcription = await AudioTranscriptionService.transcribe(file.buffer, file.mimetype);
+    const actions = await processInput(userId, transcription, 'audio');
 
     return res.status(200).json({
       message: 'Audio procesado exitosamente',
       transcription,
-      data: parsed,
+      actions,
     });
   } catch (error) {
     console.error('Error en ingestAudio:', error);
