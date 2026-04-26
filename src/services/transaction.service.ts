@@ -1,9 +1,19 @@
 // services/transaction.service.ts
 import { Op } from "sequelize";
 import { Account } from "../database/models";
+import { Category } from "../database/models";
 import { Transaction, TransactionCreationAttributes } from "../database/models/transaction";
 import { User } from "../database/models/user";
 import { TransactionSearchCriteria } from "./ai/ingestion.service";
+
+export interface ITransactionFilters {
+  date_from?: string;
+  date_to?: string;
+  account_id?: string;
+  category_id?: string;
+  type?: string;
+  limit?: number;
+}
 
 // Interface para creación de transacciones
 export interface ITransactionCreate {
@@ -202,6 +212,32 @@ export class TransactionService {
       where: where as any,
       order: [['date', 'DESC']],
       limit: 5,
+    });
+  }
+
+  /**
+   * Consulta transacciones con filtros para responder preguntas del agente.
+   */
+  static async queryWithFilters(userId: string, filters: ITransactionFilters) {
+    const where: Record<string, unknown> = { user_id: userId };
+
+    if (filters.date_from || filters.date_to) {
+      const from = filters.date_from ? new Date(filters.date_from) : new Date(0);
+      const to = filters.date_to ? new Date(`${filters.date_to}T23:59:59.999`) : new Date();
+      where.date = { [Op.between]: [from, to] };
+    }
+    if (filters.account_id) where.account_id = filters.account_id;
+    if (filters.category_id) where.category_id = filters.category_id;
+    if (filters.type) where.type = filters.type;
+
+    return await Transaction.findAll({
+      where: where as any,
+      include: [
+        { model: Account, attributes: ['id', 'name'] },
+        { model: Category, attributes: ['id', 'name'] },
+      ],
+      order: [['date', 'DESC']],
+      limit: filters.limit ?? 20,
     });
   }
 }

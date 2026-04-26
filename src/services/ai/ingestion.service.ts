@@ -62,7 +62,28 @@ export interface DeletePayload {
   confidence: number;
 }
 
+export type QueryType =
+  | 'LIST_TRANSACTIONS'
+  | 'LIST_ACCOUNTS'
+  | 'LIST_CATEGORIES'
+  | 'ACCOUNT_BALANCE'
+  | 'ACCOUNT_STATEMENT'
+  | 'SPENDING_SUMMARY';
+
+export interface QueryFilters {
+  date_from?: string;
+  date_to?: string;
+  account_name?: string;
+  account_id?: string;
+  category_name?: string;
+  category_id?: string;
+  transaction_type?: 'expense' | 'income';
+  limit?: number;
+}
+
 export interface QueryPayload {
+  query_type: QueryType;
+  filters: QueryFilters;
   raw_query: string;
   confidence: number;
 }
@@ -334,10 +355,29 @@ Para QUERY, responde:
 {
   "intent": "QUERY",
   "data": {
+    "query_type": <uno de: "LIST_TRANSACTIONS" | "LIST_ACCOUNTS" | "LIST_CATEGORIES" | "ACCOUNT_BALANCE" | "ACCOUNT_STATEMENT" | "SPENDING_SUMMARY">,
+    "filters": {
+      "date_from": <"YYYY-MM-DD" fecha inicio del rango, opcional>,
+      "date_to": <"YYYY-MM-DD" fecha fin del rango, opcional>,
+      "account_name": <nombre parcial de la cuenta mencionada, opcional>,
+      "account_id": <UUID exacto si está en la lista de cuentas, opcional>,
+      "category_name": <nombre parcial de la categoría mencionada, opcional>,
+      "category_id": <UUID exacto si está en la lista de categorías, opcional>,
+      "transaction_type": <"expense" | "income" si el usuario lo especificó, opcional>,
+      "limit": <número máximo de resultados si el usuario indicó una cantidad, opcional>
+    },
     "raw_query": <la pregunta del usuario sin modificar>,
     "confidence": <0 a 1>
   }
 }
+
+CRITERIO PARA ELEGIR query_type:
+- LIST_TRANSACTIONS: el usuario quiere ver una lista de transacciones (ej: "muéstrame mis transacciones", "qué gasté ayer", "transacciones de esta semana").
+- LIST_ACCOUNTS: el usuario quiere ver sus cuentas (ej: "qué cuentas tengo", "muéstrame mis cuentas").
+- LIST_CATEGORIES: el usuario quiere ver sus categorías (ej: "qué categorías tengo", "muéstrame las categorías").
+- ACCOUNT_BALANCE: el usuario pregunta por el saldo de una cuenta específica (ej: "cuál es el saldo de mi cuenta de ahorros", "cuánto tengo en mi tarjeta").
+- ACCOUNT_STATEMENT: el usuario quiere un resumen/estado de cuenta de una cuenta específica incluyendo transacciones recientes (ej: "dame el estado de cuenta de mi BAC", "estado de mi cuenta corriente").
+- SPENDING_SUMMARY: el usuario quiere un resumen de gastos/ingresos por período (ej: "cuánto gasté este mes", "resumen de gastos de la semana", "cuánto he gastado en comida").
 `;
 
 export class IngestionService {
