@@ -92,7 +92,18 @@ export class TransactionService {
       description: transactionData.description,
     };
 
-    return await Transaction.create(transactionToCreate);
+    const created = await Transaction.create(transactionToCreate);
+
+    // Actualizar el saldo de la cuenta
+    if (transactionData.account_id) {
+      const account = await Account.findByPk(transactionData.account_id);
+      if (account) {
+        const delta = transactionData.type === 'income' ? transactionData.amount : -transactionData.amount;
+        await account.increment('balance', { by: delta });
+      }
+    }
+
+    return created;
   }
 
   /**
@@ -118,6 +129,27 @@ export class TransactionService {
     }
 
     await transaction.update(updateData);
+
+    // Recalcular el impacto en el saldo si cambia amount o type
+    if (updateData.amount !== undefined || updateData.type !== undefined) {
+      const oldAmount = Number(transaction.amount ?? 0);
+      const oldType = transaction.type ?? 'expense';
+      const newAmount = updateData.amount ?? oldAmount;
+      const newType = updateData.type ?? oldType;
+
+      const oldDelta = oldType === 'income' ? oldAmount : -oldAmount;
+      const newDelta = newType === 'income' ? newAmount : -newAmount;
+      const net = newDelta - oldDelta;
+
+      if (net !== 0) {
+        const accountId = updateData.account_id ?? transaction.account_id;
+        if (accountId) {
+          const account = await Account.findByPk(accountId);
+          if (account) await account.increment('balance', { by: net });
+        }
+      }
+    }
+
     return transaction;
   }
 
@@ -131,6 +163,15 @@ export class TransactionService {
 
     if (!transaction) {
       return null;
+    }
+
+    // Revertir el impacto en el saldo de la cuenta antes de eliminar
+    if (transaction.account_id && transaction.amount != null && transaction.type) {
+      const account = await Account.findByPk(transaction.account_id);
+      if (account) {
+        const revertDelta = transaction.type === 'income' ? -Number(transaction.amount) : Number(transaction.amount);
+        await account.increment('balance', { by: revertDelta });
+      }
     }
 
     await transaction.destroy();

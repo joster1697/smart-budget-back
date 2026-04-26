@@ -5,6 +5,12 @@ export interface CategoryContext {
   name: string;
 }
 
+export interface AccountContext {
+  id: string;
+  name: string;
+  type: string;
+}
+
 export type AgentIntent =
   | "CREATE_TRANSACTION"
   | "UPDATE_TRANSACTION"
@@ -20,7 +26,10 @@ export type AgentIntent =
 export interface CreatePayload {
   amount: number;
   currency: string;
+  type: 'expense' | 'income';
   merchant: string | null;
+  account_id: string | null;
+  account_name: string | null;
   category_id: string | null;
   category_name: string | null;
   date: string;
@@ -125,20 +134,37 @@ export interface AgentParseResult {
 }
 
 const VALID_INTENTS: AgentIntent[] = [
-  'CREATE_TRANSACTION', 'UPDATE_TRANSACTION', 'DELETE_TRANSACTION',
-  'CREATE_ACCOUNT', 'UPDATE_ACCOUNT', 'DELETE_ACCOUNT',
-  'CREATE_CATEGORY', 'UPDATE_CATEGORY', 'DELETE_CATEGORY',
-  'QUERY',
+  "CREATE_TRANSACTION",
+  "UPDATE_TRANSACTION",
+  "DELETE_TRANSACTION",
+  "CREATE_ACCOUNT",
+  "UPDATE_ACCOUNT",
+  "DELETE_ACCOUNT",
+  "CREATE_CATEGORY",
+  "UPDATE_CATEGORY",
+  "DELETE_CATEGORY",
+  "QUERY",
 ];
 
 const PROMPT_TEMPLATE = (
   input: string,
   categories: CategoryContext[],
+  accounts: AccountContext[],
   nowIso: string,
   timezone: string,
 ) => `
 Eres un asistente financiero personal. Analiza el texto del usuario, detecta TODAS las intenciones presentes y extrae los datos de cada una.
 Responde ÚNICAMENTE con un array JSON puro, sin markdown, sin texto adicional.
+
+CAMPOS OBLIGATORIOS — si falta alguno, devuelve ese elemento con confidence: 0:
+- CREATE_TRANSACTION: "amount" debe ser un número concreto y positivo que el usuario haya mencionado explícitamente.
+- CREATE_CATEGORY: "name" debe ser un sustantivo propio que el usuario declaró como nombre de la categoría (ej: "Mascotas", "Gimnasio"). Un artículo, adjetivo, pronombre o expresión vaga NO es un nombre válido.
+- CREATE_ACCOUNT: "name" debe ser un identificador concreto que el usuario declaró (ej: "Tarjeta BAC", "Cuenta corriente"). Un artículo, adjetivo, pronombre o expresión vaga NO es un nombre válido. Además, "type" debe poder inferirse claramente del texto (ej: "tarjeta de crédito" → "credit", "cuenta de ahorros" → "savings"); si no se puede inferir con certeza, confidence: 0.
+
+CRITERIO PARA UN NOMBRE VÁLIDO: el usuario debe haber dicho explícitamente cómo se llama la entidad.
+Si la frase no contiene ese dato — aunque implique que quiere crear algo — el nombre no fue proporcionado → confidence: 0.
+Ejemplos SIN nombre válido: "crea una nueva", "agrega otra", "crea una categoría", "quiero una cuenta".
+Ejemplos CON nombre válido: "crea la categoría Mascotas", "agrega una cuenta llamada BAC", "nueva categoría: Viajes".
 
 IMPORTANTE sobre múltiples acciones:
 - SIEMPRE devuelve un array JSON, aunque solo haya una acción (array de un elemento).
@@ -150,6 +176,13 @@ Usa esta fecha para resolver referencias relativas como "ayer", "hoy", "el lunes
 
 CATEGORÍAS DISPONIBLES (usa el "id" exacto de esta lista):
 ${JSON.stringify(categories, null, 2)}
+
+CUENTAS DISPONIBLES (usa el "id" exacto para "account_id"):
+${JSON.stringify(accounts, null, 2)}
+Reglas para "account_id" en CREATE_TRANSACTION:
+- Si el usuario mencionó la cuenta explícitamente → usa su id exacto.
+- Si no mencionó la cuenta y solo hay una en la lista → usa su id.
+- Si no mencionó la cuenta y hay varias → usa account_id: null.
 
 TEXTO DEL USUARIO:
 "${input}"
@@ -174,8 +207,11 @@ Para CREATE_TRANSACTION, responde:
   "data": {
     "amount": <número positivo, normaliza "5.000"→5000, "$3.50"→3.50>,
     "currency": <"CRC" por defecto si no se menciona, o código ISO 4217>,
+    "type": <"expense" si el usuario gastó/pagó/compró/salió dinero, "income" si recibió/ganó/ingresó/entró dinero>,
     "merchant": <nombre del comercio o null>,
-    "category_id": <UUID de la lista o null>,
+    "account_id": <UUID de la lista de cuentas según las reglas anteriores, o null>,
+    "account_name": <nombre de la cuenta usada o null>,
+    "category_id": <UUID de la lista de categorías o null>,
     "category_name": <nombre de la categoría o null>,
     "date": <"YYYY-MM-DD", fecha actual si no se menciona>,
     "description": <texto original del usuario>,
@@ -336,6 +372,7 @@ export class IngestionService {
   static async parseFromText(
     input: string,
     categories: CategoryContext[],
+    accounts: AccountContext[],
     parsedFrom: "text" | "audio" = "text",
   ): Promise<AgentParseResult[]> {
     const client = this.getClient();
@@ -343,7 +380,7 @@ export class IngestionService {
     const model = client.getGenerativeModel({ model: modelName });
 
     const { iso, timezone } = this.getNow();
-    const prompt = PROMPT_TEMPLATE(input, categories, iso, timezone);
+    const prompt = PROMPT_TEMPLATE(input, categories, accounts, iso, timezone);
 
     const result = await model.generateContent(prompt);
     const rawText = result.response.text().trim();
@@ -361,24 +398,25 @@ export class IngestionService {
     }
 
     // Normalizar: si el modelo devolvió un objeto único (retro-compatibilidad), envolvemos en array
-    const items: Array<{ intent: AgentIntent; data: unknown }> = Array.isArray(rawParsed)
+    const items: Array<{ intent: AgentIntent; data: unknown }> = Array.isArray(
+      rawParsed,
+    )
       ? (rawParsed as Array<{ intent: AgentIntent; data: unknown }>)
       : [rawParsed as { intent: AgentIntent; data: unknown }];
 
-    if (items.length === 0) {
-      throw new Error("La IA no identificó ninguna acción en el texto");
-    }
-
-    for (const item of items) {
-      if (!VALID_INTENTS.includes(item.intent)) {
-        throw new Error(`Intent no reconocida: ${item.intent}`);
-      }
-      if (item.intent === "CREATE_TRANSACTION") {
-        const data = item.data as CreatePayload;
-        if (typeof data.amount !== "number" || data.amount <= 0) {
-          throw new Error("No se pudo extraer un monto válido del texto");
-        }
-      }
+    // Si el modelo no identificó ninguna acción o devolvió una intent inválida, retornar
+    // una acción de clarificación en lugar de lanzar un error — el bot preguntará al usuario.
+    if (
+      items.length === 0 ||
+      items.some((item) => !VALID_INTENTS.includes(item.intent))
+    ) {
+      return [
+        {
+          intent: "QUERY" as AgentIntent,
+          parsed_from: parsedFrom,
+          data: { raw_query: input, confidence: 0 } as AgentParseResult["data"],
+        },
+      ];
     }
 
     return items.map((item) => ({

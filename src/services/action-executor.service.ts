@@ -31,21 +31,42 @@ export class ActionExecutorService {
       switch (action.intent) {
         case 'CREATE_TRANSACTION': {
           const d = action.data as CreatePayload;
-          const accounts = await AccountService.getAccountsByUserId(userId);
-          if (accounts.length === 0) {
-            return { ok: false, message: 'No tienes ninguna cuenta registrada. Crea una cuenta primero.' };
+          const accountId = d.account_id ?? action.resolved_id;
+          if (!accountId) {
+            return { ok: false, message: 'No se pudo determinar la cuenta. Por favor indica a cuál cuenta registrar la transacción.' };
           }
+          const account = await AccountService.getAccountById(accountId, userId);
+          if (!account) {
+            return { ok: false, message: 'La cuenta especificada no existe.' };
+          }
+
           await TransactionService.createTransaction({
             user_id: userId,
-            account_id: accounts[0].id,
+            account_id: accountId,
             amount: d.amount,
             category_id: d.category_id ?? undefined,
-            type: d.amount >= 0 ? 'expense' : 'income',
+            type: d.type,
             description: d.description,
           });
+
+          // Calcular saldo resultante (ya fue actualizado por TransactionService)
+          const updatedAccount = await AccountService.getAccountById(accountId, userId);
+          const newBalance = Number(updatedAccount?.balance ?? 0);
           const sym = d.currency === 'CRC' ? '₡' : d.currency;
           const merchant = d.merchant ? ` en ${d.merchant}` : '';
-          return { ok: true, message: `✅ Transacción registrada: ${sym}${d.amount.toLocaleString()}${merchant} — ${d.date}` };
+
+          const isCredit = account.type === 'credit';
+          const isNegative = newBalance < 0;
+          let balanceNote = '';
+          if (isCredit) {
+            balanceNote = ` | Deuda en ${account.name}: ${sym}${Math.abs(newBalance).toLocaleString()}`;
+          } else if (isNegative) {
+            balanceNote = ` | ⚠️ ${account.name} quedó con saldo negativo: ${sym}${newBalance.toLocaleString()}`;
+          } else {
+            balanceNote = ` | Saldo en ${account.name}: ${sym}${newBalance.toLocaleString()}`;
+          }
+
+          return { ok: true, message: `✅ Transacción registrada: ${sym}${d.amount.toLocaleString()}${merchant} — ${d.date}${balanceNote}` };
         }
 
         case 'CREATE_ACCOUNT': {

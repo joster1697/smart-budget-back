@@ -22,6 +22,7 @@ import { WebSocketServer, WebSocket } from 'ws';
 import url from 'url';
 import { AuthService } from '../services/auth.service';
 import { CategoryService } from '../services/category.service';
+import { AccountService } from '../services/account.service';
 import { IngestionService } from '../services/ai/ingestion.service';
 import { resolveActions, ResolvedAction } from '../services/channel-processor';
 import { ActionExecutorService } from '../services/action-executor.service';
@@ -89,7 +90,9 @@ async function handleMessage(ws: AgentSocket, raw: string) {
       try {
         const categories = await CategoryService.getCategoriesByUserId(userId);
         const categoryContext = categories.map((c) => ({ id: c.id, name: c.name ?? '' }));
-        const raw = await IngestionService.parseFromText(p.text.trim(), categoryContext, 'text');
+        const accounts = await AccountService.getAccountsByUserId(userId);
+        const accountContext = accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }));
+        const raw = await IngestionService.parseFromText(p.text.trim(), categoryContext, accountContext, 'text');
         const actions = await resolveActions(userId, raw);
 
         ws.pendingActions = actions;
@@ -165,7 +168,9 @@ async function handleMessage(ws: AgentSocket, raw: string) {
       try {
         const categories = await CategoryService.getCategoriesByUserId(userId);
         const categoryContext = categories.map((c) => ({ id: c.id, name: c.name ?? '' }));
-        const raw = await IngestionService.parseFromText(p.text.trim(), categoryContext, 'text');
+        const accounts = await AccountService.getAccountsByUserId(userId);
+        const accountContext = accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }));
+        const raw = await IngestionService.parseFromText(p.text.trim(), categoryContext, accountContext, 'text');
         const actions = await resolveActions(userId, raw);
 
         // Reemplazar sólo la acción aclarada si el índice es válido

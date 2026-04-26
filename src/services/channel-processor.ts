@@ -5,6 +5,7 @@
 import {
   AgentParseResult,
   AgentIntent,
+  CreatePayload,
   UpdatePayload,
   DeletePayload,
   UpdateAccountPayload,
@@ -24,7 +25,7 @@ export type ResolvedAction = AgentParseResult & {
   follow_up_question?: string;
 };
 
-const CONFIDENCE_THRESHOLD = 0.5;
+const CONFIDENCE_THRESHOLD = 0.8; // Umbral de confianza para decidir si se necesita clarificación
 
 export async function resolveActions(
   userId: string,
@@ -38,6 +39,23 @@ async function resolveAction(userId: string, result: AgentParseResult): Promise<
 
   if (confidence < CONFIDENCE_THRESHOLD) {
     return { ...result, status: 'NEEDS_CLARIFICATION', follow_up_question: '¿Puedes darme más detalles? No entendí bien la solicitud.' };
+  }
+
+  if (result.intent === 'CREATE_TRANSACTION') {
+    const payload = result.data as CreatePayload;
+    if (!payload.account_id) {
+      const accounts = await AccountService.getAccountsByUserId(userId);
+      if (accounts.length === 0) {
+        return { ...result, status: 'NEEDS_CLARIFICATION', follow_up_question: 'No tienes ninguna cuenta registrada. Primero crea una cuenta.' };
+      }
+      if (accounts.length === 1) {
+        // Auto-seleccionar la única cuenta disponible
+        const data = { ...payload, account_id: accounts[0].id, account_name: accounts[0].name };
+        return { ...result, data, status: 'READY', candidates: accounts };
+      }
+      return { ...result, status: 'AMBIGUOUS', candidates: accounts, follow_up_question: '¿A cuál cuenta quieres registrar esta transacción?' };
+    }
+    return { ...result, status: 'READY' };
   }
 
   if (result.intent === 'UPDATE_TRANSACTION' || result.intent === 'DELETE_TRANSACTION') {
