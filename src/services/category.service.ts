@@ -48,6 +48,7 @@ export class CategoryService {
       ],
     });
   }
+  
   //Crear categoria nueva
   static async createCategory(categoryData: ICategoryCreate) {
     //Verificar que el usuario existe

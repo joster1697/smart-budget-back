@@ -1,12 +1,8 @@
 import crypto from 'crypto';
 import { Telegraf } from 'telegraf';
 import { User } from '../database/models/user';
-import { CategoryService } from '../services/category.service';
-import { AccountService } from '../services/account.service';
-import { IngestionService } from '../services/ai/ingestion.service';
-import { resolveActions, ResolvedAction } from '../services/channel-processor';
 import { ActionExecutorService } from '../services/action-executor.service';
-import { extractId } from './agent.gateway';
+import { processInput, ResolvedAction } from '../services/channel-processor';
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
 
@@ -58,12 +54,7 @@ bot.on('text', async (ctx) => {
 
   await ctx.sendChatAction('typing');
 
-  const categories = await CategoryService.getCategoriesByUserId(user.id);
-  const categoryContext = categories.map((c) => ({ id: c.id, name: c.name ?? '' }));
-  const accounts = await AccountService.getAccountsByUserId(user.id);
-  const accountContext = accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }));
-  const raw = await IngestionService.parseFromText(text.trim(), categoryContext, accountContext, 'text');
-  const actions = await resolveActions(user.id, raw);
+  const actions = await processInput(user.id, text.trim(), 'text');
 
   sessions.set(chatId, actions);
 

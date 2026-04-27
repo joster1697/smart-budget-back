@@ -1,6 +1,8 @@
 import { Router, Request } from 'express';
 import multer from 'multer';
 import { authenticate } from '../middlewares/auth.middleware';
+import { validate } from '../middlewares/validate.middleware';
+import { ingestTextSchema } from '../validators/agent.validators';
 import { ingestText, ingestAudio } from '../controllers/agent.controller';
 
 const router = Router();
@@ -19,7 +21,7 @@ const upload = multer({
 });
 
 // POST /api/agent/ingest/text
-router.post('/ingest/text', authenticate, ingestText);
+router.post('/ingest/text', authenticate, validate(ingestTextSchema), ingestText);
 
 // POST /api/agent/ingest/audio
 router.post('/ingest/audio', authenticate, upload.single('audio'), ingestAudio);

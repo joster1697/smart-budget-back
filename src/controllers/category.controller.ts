@@ -1,4 +1,4 @@
-import { Response } from "express";
+import { NextFunction, Response } from "express";
 import { CategoryService } from "../services/category.service";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
@@ -8,7 +8,7 @@ import { AuthRequest } from "../middlewares/auth.middleware";
  * @access Private
  */
 
-export const getUserCategories = async (req: AuthRequest, res: Response) => {
+export const getUserCategories = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
 
@@ -21,11 +21,7 @@ export const getUserCategories = async (req: AuthRequest, res: Response) => {
       categories,
     });
   } catch (error) {
-    console.log("Error en getUserCategories:", error);
-    res.status(500).json({
-      message: "Error al obtener las categorias",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -35,7 +31,7 @@ export const getUserCategories = async (req: AuthRequest, res: Response) => {
  * @access Private
  */
 
-export const getCategoryById = async (req: AuthRequest, res: Response) => {
+export const getCategoryById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -59,11 +55,7 @@ export const getCategoryById = async (req: AuthRequest, res: Response) => {
       category,
     });
   } catch (error) {
-    console.log("Error en getCategoryById:", error);
-    res.status(500).json({
-      message: "Error al obtener la categoria",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -73,7 +65,7 @@ export const getCategoryById = async (req: AuthRequest, res: Response) => {
  * @access Private
  */
 
-export const createCategory = async (req: AuthRequest, res: Response) => {
+export const createCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
 
@@ -81,7 +73,7 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Usuario no autenticado" });
     }
 
-    const { user_id, name } = req.body;
+    const { name } = req.body;
     const categoryData = {
       user_id: userId,
       name: name,
@@ -93,11 +85,7 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
       category: newCategory,
     });
   } catch (error) {
-    console.error("Error en CreateCategory:", error);
-    res.status(500).json({
-      message: "Error al crear la categoria",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -107,7 +95,7 @@ export const createCategory = async (req: AuthRequest, res: Response) => {
  * @access Private
  */
 
-export const updateCategory = async (req: AuthRequest, res: Response) => {
+export const updateCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -132,11 +120,7 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
       category: updatedCategory,
     });
   } catch (error) {
-    console.error("Error en updateCategory", error);
-    res.status(500).json({
-      message: "Error al actualizar la categoria",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -146,7 +130,7 @@ export const updateCategory = async (req: AuthRequest, res: Response) => {
  * @access Private
  */
 
-export const deleteCategory = async (req: AuthRequest, res: Response) => {
+export const deleteCategory = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -159,10 +143,6 @@ export const deleteCategory = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json(result);
   } catch (error) {
-    console.error("Error en deleteCategory", error);
-    res.status(500).json({
-      message: "Error al eliminar la categoria",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };

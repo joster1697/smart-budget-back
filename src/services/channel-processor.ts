@@ -5,6 +5,8 @@
 import {
   AgentParseResult,
   AgentIntent,
+  ActionStatus,
+  ResolvedAction,
   CreatePayload,
   UpdatePayload,
   DeletePayload,
@@ -12,18 +14,28 @@ import {
   DeleteAccountPayload,
   UpdateCategoryPayload,
   DeleteCategoryPayload,
-} from './ai/ingestion.service';
+} from '../types/agent.types';
 import { TransactionService } from './transaction.service';
 import { AccountService } from './account.service';
 import { CategoryService } from './category.service';
+import { IngestionService, AccountContext } from './ai/ingestion.service';
 
-export type ActionStatus = 'READY' | 'NEEDS_CONFIRMATION' | 'AMBIGUOUS' | 'NEEDS_CLARIFICATION';
+export type { ActionStatus, ResolvedAction };
 
-export type ResolvedAction = AgentParseResult & {
-  status: ActionStatus;
-  candidates?: unknown[];
-  follow_up_question?: string;
-};
+export async function processInput(
+  userId: string,
+  input: string,
+  parsedFrom: 'text' | 'audio',
+): Promise<ResolvedAction[]> {
+  const [categories, accounts] = await Promise.all([
+    CategoryService.getCategoriesByUserId(userId),
+    AccountService.getAccountsByUserId(userId),
+  ]);
+  const categoryContext = categories.map((c) => ({ id: c.id, name: c.name ?? '' }));
+  const accountContext: AccountContext[] = accounts.map((a) => ({ id: a.id, name: a.name, type: a.type }));
+  const raw = await IngestionService.parseFromText(input, categoryContext, accountContext, parsedFrom);
+  return resolveActions(userId, raw);
+}
 
 const CONFIDENCE_THRESHOLD = 0.8; // Umbral de confianza para decidir si se necesita clarificación
 

@@ -1,171 +1,31 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  AgentIntent,
+  AgentParseResult,
+  AccountContext,
+  CategoryContext,
+  VALID_INTENTS,
+} from "../../types/agent.types";
 
-export interface CategoryContext {
-  id: string;
-  name: string;
-}
-
-export interface AccountContext {
-  id: string;
-  name: string;
-  type: string;
-}
-
-export type AgentIntent =
-  | "CREATE_TRANSACTION"
-  | "UPDATE_TRANSACTION"
-  | "DELETE_TRANSACTION"
-  | "CREATE_ACCOUNT"
-  | "UPDATE_ACCOUNT"
-  | "DELETE_ACCOUNT"
-  | "CREATE_CATEGORY"
-  | "UPDATE_CATEGORY"
-  | "DELETE_CATEGORY"
-  | "QUERY";
-
-export interface CreatePayload {
-  amount: number;
-  currency: string;
-  type: 'expense' | 'income';
-  merchant: string | null;
-  account_id: string | null;
-  account_name: string | null;
-  category_id: string | null;
-  category_name: string | null;
-  date: string;
-  description: string;
-  confidence: number;
-}
-
-export interface TransactionSearchCriteria {
-  description?: string;
-  merchant?: string;
-  date?: string;
-}
-
-export interface UpdatePayload {
-  search: TransactionSearchCriteria;
-  changes: {
-    amount?: number;
-    currency?: string;
-    merchant?: string;
-    category_id?: string;
-    category_name?: string;
-    date?: string;
-    description?: string;
-  };
-  confidence: number;
-}
-
-export interface DeletePayload {
-  search: TransactionSearchCriteria;
-  confidence: number;
-}
-
-export type QueryType =
-  | 'LIST_TRANSACTIONS'
-  | 'LIST_ACCOUNTS'
-  | 'LIST_CATEGORIES'
-  | 'ACCOUNT_BALANCE'
-  | 'ACCOUNT_STATEMENT'
-  | 'SPENDING_SUMMARY';
-
-export interface QueryFilters {
-  date_from?: string;
-  date_to?: string;
-  account_name?: string;
-  account_id?: string;
-  category_name?: string;
-  category_id?: string;
-  transaction_type?: 'expense' | 'income';
-  limit?: number;
-}
-
-export interface QueryPayload {
-  query_type: QueryType;
-  filters: QueryFilters;
-  raw_query: string;
-  confidence: number;
-}
-
-export interface CreateAccountPayload {
-  name: string;
-  type: string;
-  balance: number;
-  currency: string;
-  confidence: number;
-}
-
-export interface CreateCategoryPayload {
-  name: string;
-  confidence: number;
-}
-
-export interface AccountSearchCriteria {
-  name?: string;
-  type?: string;
-}
-
-export interface UpdateAccountPayload {
-  search: AccountSearchCriteria;
-  changes: {
-    name?: string;
-    type?: string;
-    balance?: number;
-  };
-  confidence: number;
-}
-
-export interface DeleteAccountPayload {
-  search: AccountSearchCriteria;
-  confidence: number;
-}
-
-export interface CategorySearchCriteria {
-  name?: string;
-}
-
-export interface UpdateCategoryPayload {
-  search: CategorySearchCriteria;
-  changes: {
-    name: string;
-  };
-  confidence: number;
-}
-
-export interface DeleteCategoryPayload {
-  search: CategorySearchCriteria;
-  confidence: number;
-}
-
-export interface AgentParseResult {
-  intent: AgentIntent;
-  parsed_from: "text" | "audio";
-  data:
-    | CreatePayload
-    | UpdatePayload
-    | DeletePayload
-    | QueryPayload
-    | CreateAccountPayload
-    | UpdateAccountPayload
-    | DeleteAccountPayload
-    | CreateCategoryPayload
-    | UpdateCategoryPayload
-    | DeleteCategoryPayload;
-}
-
-const VALID_INTENTS: AgentIntent[] = [
-  "CREATE_TRANSACTION",
-  "UPDATE_TRANSACTION",
-  "DELETE_TRANSACTION",
-  "CREATE_ACCOUNT",
-  "UPDATE_ACCOUNT",
-  "DELETE_ACCOUNT",
-  "CREATE_CATEGORY",
-  "UPDATE_CATEGORY",
-  "DELETE_CATEGORY",
-  "QUERY",
-];
+export type {
+  AgentIntent,
+  AgentParseResult,
+  AccountContext,
+  CategoryContext,
+  TransactionSearchCriteria,
+  CreatePayload,
+  UpdatePayload,
+  DeletePayload,
+  CreateAccountPayload,
+  UpdateAccountPayload,
+  DeleteAccountPayload,
+  CreateCategoryPayload,
+  UpdateCategoryPayload,
+  DeleteCategoryPayload,
+  QueryType,
+  QueryFilters,
+  QueryPayload,
+} from "../../types/agent.types";
 
 const PROMPT_TEMPLATE = (
   input: string,

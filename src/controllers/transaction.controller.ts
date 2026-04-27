@@ -1,5 +1,5 @@
 // controllers/transaction.controller.ts
-import { Response } from "express";
+import { NextFunction, Response } from "express";
 import { AuthRequest } from "../middlewares/auth.middleware";
 import { TransactionService } from "../services/transaction.service";
 
@@ -8,7 +8,7 @@ import { TransactionService } from "../services/transaction.service";
  * @route GET /api/transactions
  * @access Private
  */
-export const getUserTransactions = async (req: AuthRequest, res: Response) => {
+export const getUserTransactions = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
 
@@ -22,11 +22,7 @@ export const getUserTransactions = async (req: AuthRequest, res: Response) => {
       transactions,
     });
   } catch (error) {
-    console.error("Error en getUserTransactions:", error);
-    res.status(500).json({
-      message: "Error al obtener las transacciones",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -35,7 +31,7 @@ export const getUserTransactions = async (req: AuthRequest, res: Response) => {
  * @route GET /api/transactions/:id
  * @access Private
  */
-export const getTransactionById = async (req: AuthRequest, res: Response) => {
+export const getTransactionById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -55,11 +51,7 @@ export const getTransactionById = async (req: AuthRequest, res: Response) => {
       transaction,
     });
   } catch (error) {
-    console.error("Error en getTransactionById:", error);
-    res.status(500).json({
-      message: "Error al obtener la transacción",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -68,7 +60,7 @@ export const getTransactionById = async (req: AuthRequest, res: Response) => {
  * @route POST /api/transactions
  * @access Private
  */
-export const createTransaction = async (req: AuthRequest, res: Response) => {
+export const createTransaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { account_id, amount, category_id, type, description, date } = req.body;
     const userId = req.user?.id;
@@ -96,11 +88,7 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
       transaction: newTransaction,
     });
   } catch (error) {
-    console.error("Error en createTransaction:", error);
-    res.status(500).json({
-      message: "Error al crear la transacción",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -109,7 +97,7 @@ export const createTransaction = async (req: AuthRequest, res: Response) => {
  * @route PUT /api/transactions/:id
  * @access Private
  */
-export const updateTransaction = async (req: AuthRequest, res: Response) => {
+export const updateTransaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -138,11 +126,7 @@ export const updateTransaction = async (req: AuthRequest, res: Response) => {
       transaction: updated,
     });
   } catch (error) {
-    console.error("Error en updateTransaction:", error);
-    res.status(500).json({
-      message: "Error al actualizar la transacción",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -151,7 +135,7 @@ export const updateTransaction = async (req: AuthRequest, res: Response) => {
  * @route DELETE /api/transactions/:id
  * @access Private
  */
-export const deleteTransaction = async (req: AuthRequest, res: Response) => {
+export const deleteTransaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -168,11 +152,7 @@ export const deleteTransaction = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json({ message: "Transacción eliminada exitosamente" });
   } catch (error) {
-    console.error("Error en deleteTransaction:", error);
-    res.status(500).json({
-      message: "Error al eliminar la transacción",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 

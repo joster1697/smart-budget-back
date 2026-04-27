@@ -80,8 +80,9 @@ export class TransactionService {
     }
 
     // Si hay una cuenta vinculada, verificar que existe y pertenece al usuario
+    let linkedAccount = null;
     if (transactionData.account_id) {
-      const linkedAccount = await Account.findOne({
+      linkedAccount = await Account.findOne({
         where: {
           id: transactionData.account_id,
           user_id: transactionData.user_id,
@@ -105,12 +106,9 @@ export class TransactionService {
     const created = await Transaction.create(transactionToCreate);
 
     // Actualizar el saldo de la cuenta
-    if (transactionData.account_id) {
-      const account = await Account.findByPk(transactionData.account_id);
-      if (account) {
-        const delta = transactionData.type === 'income' ? transactionData.amount : -transactionData.amount;
-        await account.increment('balance', { by: delta });
-      }
+    if (linkedAccount) {
+      const delta = transactionData.type === 'income' ? transactionData.amount : -transactionData.amount;
+      await linkedAccount.increment('balance', { by: delta });
     }
 
     return created;

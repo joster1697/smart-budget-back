@@ -1,13 +1,8 @@
-import { Request, Response, NextFunction } from 'express';
+import { Response, NextFunction } from 'express';
 import { AuthService } from '../services/auth.service';
+import { AuthRequest } from '../types/request.types';
 
-// Extender el tipo Request para incluir el usuario autenticado
-export interface AuthRequest extends Request {
-  user?: {
-    id: string;
-    email: string;
-  };
-}
+export type { AuthRequest };
 
 // Middleware para verificar autenticación
 export const authenticate = async (

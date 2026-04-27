@@ -10,10 +10,13 @@ const router = Router();
  * @access  Private
  */
 router.get("/", authenticate, getUsers);
+
+/**
+ * @route   GET /api/users/:id
+ * @desc    Obtener un usuario por ID (requiere autenticación)
+ * @access  Private
+ */
 router.get("/:id", authenticate, getUserById);
 
-// Futuras rutas:
-// router.put("/:id", authenticate, updateUser);
-// router.delete("/:id", authenticate, authorize("admin"), deleteUser);
 
 export default router;
