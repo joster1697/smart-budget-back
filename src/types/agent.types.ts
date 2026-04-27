@@ -23,6 +23,7 @@ export const VALID_INTENTS = [
   'UPDATE_CATEGORY',
   'DELETE_CATEGORY',
   'QUERY',
+  'GREETING',
 ] as const;
 
 export type AgentIntent = typeof VALID_INTENTS[number];
@@ -46,6 +47,7 @@ export interface CreatePayload {
   category_name: string | null;
   date: string;
   description: string;
+  notes: string;
   confidence: number;
 }
 
@@ -150,6 +152,10 @@ export interface QueryPayload {
   confidence: number;
 }
 
+export interface GreetingPayload {
+  confidence: number;
+}
+
 // ─── Channel processor ───────────────────────────────────────────────────────
 
 export type ActionStatus = 'READY' | 'NEEDS_CONFIRMATION' | 'AMBIGUOUS' | 'NEEDS_CLARIFICATION';
@@ -178,5 +184,6 @@ export interface AgentParseResult {
     | DeleteAccountPayload
     | CreateCategoryPayload
     | UpdateCategoryPayload
-    | DeleteCategoryPayload;
+    | DeleteCategoryPayload
+    | GreetingPayload;
 }

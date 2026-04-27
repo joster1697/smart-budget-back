@@ -23,6 +23,8 @@ export type TransactionCreationAttributes = Optional<{
   type: string;
   description?: string;
   merchant?: string;
+  date?: Date;
+  notes?: string;
 }, 'id' | 'category_id'>;
 
 @Table({
@@ -69,6 +71,10 @@ export class Transaction extends Model<Transaction, TransactionCreationAttribute
   @AllowNull(true)
   @Column(DataType.STRING)
   merchant?: string;
+
+  @AllowNull(true)
+  @Column(DataType.TEXT)
+  notes?: string;
 
   @BelongsTo(() => User)
   user?: User;

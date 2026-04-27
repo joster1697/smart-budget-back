@@ -39,13 +39,20 @@ export class ActionExecutorService {
             return { ok: false, message: 'La cuenta especificada no existe.' };
           }
 
+          const categoryId = d.category_id
+            // Si la cuenta ya estaba resuelta en el payload, resolved_id corresponde a la categoría
+            ?? (d.account_id && action.resolved_id ? action.resolved_id : undefined);
+
           await TransactionService.createTransaction({
             user_id: userId,
             account_id: accountId,
             amount: d.amount,
-            category_id: d.category_id ?? undefined,
+            category_id: categoryId,
             type: d.type,
             description: d.description,
+            date: d.date,
+            merchant: d.merchant ?? undefined,
+            notes: d.notes ?? undefined,
           });
 
           // Calcular saldo resultante (ya fue actualizado por TransactionService)
@@ -123,6 +130,19 @@ export class ActionExecutorService {
 
         case 'QUERY':
           return ActionExecutorService.executeQuery(action.data as QueryPayload, userId);
+
+        case 'GREETING':
+          return {
+            ok: true,
+            message:
+              '👋 ¡Hola! Soy tu asistente de finanzas personales.\n\n' +
+              'Puedo ayudarte a:\n' +
+              '• 💸 Registrar gastos e ingresos\n' +
+              '• 🏦 Crear y gestionar cuentas\n' +
+              '• 🗂️ Organizar categorías\n' +
+              '• 🔍 Consultar tu historial de transacciones\n\n' +
+              'Solo cuéntame qué quieres hacer en lenguaje natural.',
+          };
 
         default:
           return { ok: false, message: 'Acción no reconocida.' };

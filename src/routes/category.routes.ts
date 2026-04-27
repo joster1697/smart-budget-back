@@ -13,34 +13,164 @@ import { createCategorySchema, updateCategorySchema } from "../validators/catego
 const router = Router();
 
 /**
- * @route   GET /api/categories
- * @desc    Obtener todas las categorias del usuario autenticado
- * @access  Private
+ * @openapi
+ * /api/categories:
+ *   get:
+ *     tags:
+ *       - Categories
+ *     summary: Obtener todas las categorías del usuario
+ *     security:
+ *       - BearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: Lista de categorías
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Category'
+ *       '401':
+ *         description: No autenticado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *   post:
+ *     tags:
+ *       - Categories
+ *     summary: Crear una nueva categoría
+ *     security:
+ *       - BearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name, user_id]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               user_id:
+ *                 type: string
+ *                 format: uuid
+ *     responses:
+ *       '201':
+ *         description: Categoría creada exitosamente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Category'
+ *       '400':
+ *         description: Error de validación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
  */
-
 router.get("/", authenticate, getUserCategories);
 
 /**
- * @route   GET /api/categories/:id
- * @desc    Obtener una categoria específica por ID
- * @access  Private
+ * @openapi
+ * /api/categories/{id}:
+ *   get:
+ *     tags:
+ *       - Categories
+ *     summary: Obtener una categoría por ID
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       '200':
+ *         description: Categoría encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Category'
+ *       '404':
+ *         description: Categoría no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *   put:
+ *     tags:
+ *       - Categories
+ *     summary: Actualizar una categoría existente
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 minLength: 2
+ *                 maxLength: 100
+ *     responses:
+ *       '200':
+ *         description: Categoría actualizada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/Category'
+ *       '400':
+ *         description: Error de validación
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ValidationError'
+ *       '404':
+ *         description: Categoría no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
+ *   delete:
+ *     tags:
+ *       - Categories
+ *     summary: Eliminar una categoría
+ *     security:
+ *       - BearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       '204':
+ *         description: Categoría eliminada exitosamente
+ *       '404':
+ *         description: Categoría no encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ErrorResponse'
  */
-
 router.get("/:id", authenticate, getCategoryById);
 
-/**
- * @route   POST /api/category
- * @desc    Crear una nueva categoria
- * @access  Private
- */
-
 router.post("/", authenticate, validate(createCategorySchema), createCategory);
-
-/**
- * @route   PUT /api/categories/:id
- * @desc    Actualizar una categoria existente
- * @access  Private
- */
 
 router.put(
   "/:id",
@@ -48,12 +178,6 @@ router.put(
   validate(updateCategorySchema),
   updateCategory,
 );
-
-/**
- * @route   DELETE /api/categories/:id
- * @desc    Eliminar una categoria
- * @access  Private
- */
 
 router.delete("/:id", authenticate, deleteCategory);
 

@@ -23,6 +23,9 @@ export interface ITransactionCreate {
   category_id?: string;
   type: string;
   description: string;
+  date?: string | Date;
+  merchant?: string;
+  notes?: string;
 }
 
 // Interface para actualización de transacciones
@@ -101,6 +104,9 @@ export class TransactionService {
       category_id: transactionData.category_id,
       type: transactionData.type,
       description: transactionData.description,
+      date: transactionData.date ? new Date(transactionData.date) : new Date(),
+      merchant: transactionData.merchant,
+      notes: transactionData.notes,
     };
 
     const created = await Transaction.create(transactionToCreate);

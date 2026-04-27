@@ -52,6 +52,14 @@ module.exports = {
         type: DataTypes.STRING,
         allowNull: true
       },
+      merchant: {
+        type: DataTypes.STRING,
+        allowNull: true
+      },
+      notes: {
+        type: DataTypes.TEXT,
+        allowNull: true
+      },
       createdAt: {
         allowNull: false,
         type: DataTypes.DATE

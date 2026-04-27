@@ -25,6 +25,7 @@ export type {
   QueryType,
   QueryFilters,
   QueryPayload,
+  GreetingPayload,
 } from "../../types/agent.types";
 
 const PROMPT_TEMPLATE = (
@@ -79,6 +80,7 @@ INTENCIONES POSIBLES:
 - UPDATE_CATEGORY: el usuario quiere renombrar una categoría (ej: "cambia Comida a Alimentación", "renombra la categoría Gym a Gimnasio").
 - DELETE_CATEGORY: el usuario quiere eliminar una categoría (ej: "borra la categoría Mascotas", "elimina la categoría Gimnasio").
 - QUERY: el usuario hace una pregunta sobre sus finanzas (ej: "cuánto gasté este mes", "cuál es mi saldo").
+- GREETING: el usuario está saludando o iniciando una conversación sin pedir ninguna acción financiera (ej: "hola", "buenos días", "hey, ¿cómo estás?", "hi").
 
 REGLAS DE EXTRACCIÓN POR INTENCIÓN:
 
@@ -95,7 +97,8 @@ Para CREATE_TRANSACTION, responde:
     "category_id": <UUID de la lista de categorías o null>,
     "category_name": <nombre de la categoría o null>,
     "date": <"YYYY-MM-DD", fecha actual si no se menciona>,
-    "description": <texto original del usuario>,
+    "description": <descripción corta y limpia de la transacción, ej: "Almuerzo", "Pago Netflix", "Gasolina", "Salario">,
+    "notes": <texto original exacto del usuario sin modificar>,
     "confidence": <0 a 1>
   }
 }
@@ -228,6 +231,14 @@ Para QUERY, responde:
     },
     "raw_query": <la pregunta del usuario sin modificar>,
     "confidence": <0 a 1>
+  }
+}
+
+Para GREETING, responde:
+{
+  "intent": "GREETING",
+  "data": {
+    "confidence": 1
   }
 }
 
