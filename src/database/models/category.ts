@@ -8,17 +8,26 @@ import {
   AllowNull,
   ForeignKey,
   BelongsTo,
-  HasMany
-} from 'sequelize-typescript';
-import { User } from './user';
-import { Transaction } from './transaction';
-import { Budget } from './budget';
+  HasMany,
+} from "sequelize-typescript";
+import { User } from "./user";
+import { Transaction } from "./transaction";
+import { Budget } from "./budget";
+import { Optional } from "sequelize";
 
+export type CategoryCreationAttributes = Optional<
+  { 
+    id?: string; 
+    name: string; 
+    user_id: string;
+   },
+  "id"
+>;
 @Table({
-  tableName: 'categories',
-  timestamps: true
+  tableName: "categories",
+  timestamps: true,
 })
-export class Category extends Model<Category> {
+export class Category extends Model<Category, CategoryCreationAttributes> {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)

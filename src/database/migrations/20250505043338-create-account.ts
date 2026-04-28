@@ -18,6 +18,10 @@ module.exports = {
         onDelete: 'CASCADE',
         type: DataTypes.UUID,
       },
+      name: {
+        allowNull: false,
+        type: DataTypes.STRING,
+      },
       balance: {
         allowNull: false,
         type: DataTypes.DECIMAL,

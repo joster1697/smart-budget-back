@@ -40,11 +40,10 @@ export async function initializeDatabase() {
     await sequelize.authenticate();
     console.log('Conexión a la base de datos establecida');
     
-    // Sincronización solo en desarrollo (usar migraciones en producción)
-    if (process.env.NODE_ENV === 'development') {
-      await sequelize.sync({ alter: true });
-      console.log('Modelos sincronizados');
-    }
+    // sync({ alter: true }) se evita deliberadamente: acumula índices duplicados en MySQL
+    // con cada reinicio hasta alcanzar el límite de 64 keys por tabla.
+    // Usa migraciones para cambios de esquema: npx sequelize-cli db:migrate
+    await sequelize.sync({ force: false });
   } catch (error) {
     console.error('Error al conectar a la base de datos:', error);
     process.exit(1); // Termina la aplicación si no puede conectarse

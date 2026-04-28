@@ -22,6 +22,11 @@ module.exports = {
         type: DataTypes.STRING,
         allowNull: false
       },
+      telegram_chat_id: {
+        type: DataTypes.STRING,
+        allowNull: true,
+        unique: true
+      },
       createdAt: {
         allowNull: false,
         type: DataTypes.DATE

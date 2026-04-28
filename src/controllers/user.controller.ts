@@ -1,5 +1,5 @@
 // controllers/user.controller.ts
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
 import { UserService } from "../services/user.service";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
@@ -8,7 +8,7 @@ import { AuthRequest } from "../middlewares/auth.middleware";
  * @route GET /api/users
  * @access Private
  */
-export const getUsers = async (req: Request, res: Response) => {
+export const getUsers = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const users = await UserService.getAllUsersWithAccounts();
     res.status(200).json({
@@ -16,11 +16,7 @@ export const getUsers = async (req: Request, res: Response) => {
       users
     });
   } catch (error) {
-    console.error("Error en getUsers:", error);
-    res.status(500).json({ 
-      message: "Error al obtener usuarios",
-      error: error instanceof Error ? error.message : "Error desconocido"
-    });
+    next(error);
   }
 };
 
@@ -29,7 +25,7 @@ export const getUsers = async (req: Request, res: Response) => {
  * @route GET /api/users/:id
  * @access Private
  */
-export const getUserById = async (req: AuthRequest, res: Response) => {
+export const getUserById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const { id } = req.params;
     const user = await UserService.getUserById(id);
@@ -43,13 +39,10 @@ export const getUserById = async (req: AuthRequest, res: Response) => {
       user
     });
   } catch (error) {
-    console.error("Error en getUserById:", error);
-    res.status(500).json({
-      message: "Error al obtener el usuario",
-      error: error instanceof Error ? error.message : "Error desconocido"
-    });
+    next(error);
   }
 };
+
 
 // Futuras funciones:
 // export const updateUser = async (req: AuthRequest, res: Response) => { ... }

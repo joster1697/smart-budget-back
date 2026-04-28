@@ -1,67 +1,35 @@
-// routes/account.routes.ts
 import { Router } from "express";
 import {
-  getUserAccounts,
-  getAccountById,
-  createAccount,
-  updateAccount,
-  deleteAccount,
-  getTotalBalance,
-} from "../controllers/account.controller";
+  getUserCategories,
+  getCategoryById,
+  createCategory,
+  updateCategory,
+  deleteCategory,
+} from "../controllers/category.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
-import { createAccountSchema, updateAccountSchema } from "../validators/account.validators";
+import { createCategorySchema, updateCategorySchema } from "../validators/category.validators";
 
 const router = Router();
 
 /**
  * @openapi
- * /api/accounts/balance/total:
+ * /api/categories:
  *   get:
  *     tags:
- *       - Accounts
- *     summary: Obtener el balance total del usuario
+ *       - Categories
+ *     summary: Obtener todas las categorías del usuario
  *     security:
  *       - BearerAuth: []
  *     responses:
  *       '200':
- *         description: Balance total calculado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 total:
- *                   type: number
- *                 currency:
- *                   type: string
- *       '401':
- *         description: No autenticado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
- */
-router.get("/balance/total", authenticate, getTotalBalance);
-
-/**
- * @openapi
- * /api/accounts:
- *   get:
- *     tags:
- *       - Accounts
- *     summary: Obtener todas las cuentas del usuario
- *     security:
- *       - BearerAuth: []
- *     responses:
- *       '200':
- *         description: Lista de cuentas
+ *         description: Lista de categorías
  *         content:
  *           application/json:
  *             schema:
  *               type: array
  *               items:
- *                 $ref: '#/components/schemas/Account'
+ *                 $ref: '#/components/schemas/Category'
  *       '401':
  *         description: No autenticado
  *         content:
@@ -70,8 +38,8 @@ router.get("/balance/total", authenticate, getTotalBalance);
  *               $ref: '#/components/schemas/ErrorResponse'
  *   post:
  *     tags:
- *       - Accounts
- *     summary: Crear una nueva cuenta
+ *       - Categories
+ *     summary: Crear una nueva categoría
  *     security:
  *       - BearerAuth: []
  *     requestBody:
@@ -80,47 +48,38 @@ router.get("/balance/total", authenticate, getTotalBalance);
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, balance, type]
+ *             required: [name, user_id]
  *             properties:
  *               name:
  *                 type: string
- *               balance:
- *                 type: number
- *               type:
+ *                 minLength: 2
+ *                 maxLength: 100
+ *               user_id:
  *                 type: string
- *                 enum: [checking, savings, credit, cash, investment]
- *               account_linked:
- *                 type: string
- *                 nullable: true
+ *                 format: uuid
  *     responses:
  *       '201':
- *         description: Cuenta creada exitosamente
+ *         description: Categoría creada exitosamente
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Account'
+ *               $ref: '#/components/schemas/Category'
  *       '400':
  *         description: Error de validación
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ValidationError'
- *       '401':
- *         description: No autenticado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get("/", authenticate, getUserAccounts);
+router.get("/", authenticate, getUserCategories);
 
 /**
  * @openapi
- * /api/accounts/{id}:
+ * /api/categories/{id}:
  *   get:
  *     tags:
- *       - Accounts
- *     summary: Obtener una cuenta por ID
+ *       - Categories
+ *     summary: Obtener una categoría por ID
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -132,21 +91,21 @@ router.get("/", authenticate, getUserAccounts);
  *           format: uuid
  *     responses:
  *       '200':
- *         description: Cuenta encontrada
+ *         description: Categoría encontrada
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Account'
+ *               $ref: '#/components/schemas/Category'
  *       '404':
- *         description: Cuenta no encontrada
+ *         description: Categoría no encontrada
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *   put:
  *     tags:
- *       - Accounts
- *     summary: Actualizar una cuenta existente
+ *       - Categories
+ *     summary: Actualizar una categoría existente
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -165,21 +124,15 @@ router.get("/", authenticate, getUserAccounts);
  *             properties:
  *               name:
  *                 type: string
- *               balance:
- *                 type: number
- *               type:
- *                 type: string
- *                 enum: [checking, savings, credit, cash, investment]
- *               account_linked:
- *                 type: string
- *                 nullable: true
+ *                 minLength: 2
+ *                 maxLength: 100
  *     responses:
  *       '200':
- *         description: Cuenta actualizada
+ *         description: Categoría actualizada
  *         content:
  *           application/json:
  *             schema:
- *               $ref: '#/components/schemas/Account'
+ *               $ref: '#/components/schemas/Category'
  *       '400':
  *         description: Error de validación
  *         content:
@@ -187,15 +140,15 @@ router.get("/", authenticate, getUserAccounts);
  *             schema:
  *               $ref: '#/components/schemas/ValidationError'
  *       '404':
- *         description: Cuenta no encontrada
+ *         description: Categoría no encontrada
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  *   delete:
  *     tags:
- *       - Accounts
- *     summary: Eliminar una cuenta
+ *       - Categories
+ *     summary: Eliminar una categoría
  *     security:
  *       - BearerAuth: []
  *     parameters:
@@ -207,20 +160,25 @@ router.get("/", authenticate, getUserAccounts);
  *           format: uuid
  *     responses:
  *       '204':
- *         description: Cuenta eliminada exitosamente
+ *         description: Categoría eliminada exitosamente
  *       '404':
- *         description: Cuenta no encontrada
+ *         description: Categoría no encontrada
  *         content:
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ErrorResponse'
  */
-router.get("/:id", authenticate, getAccountById);
+router.get("/:id", authenticate, getCategoryById);
 
-router.post("/", authenticate, validate(createAccountSchema), createAccount);
+router.post("/", authenticate, validate(createCategorySchema), createCategory);
 
-router.put("/:id", authenticate, validate(updateAccountSchema), updateAccount);
+router.put(
+  "/:id",
+  authenticate,
+  validate(updateCategorySchema),
+  updateCategory,
+);
 
-router.delete("/:id", authenticate, deleteAccount);
+router.delete("/:id", authenticate, deleteCategory);
 
 export default router;

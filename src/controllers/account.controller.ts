@@ -1,5 +1,5 @@
 // controllers/account.controller.ts
-import { Response } from "express";
+import { NextFunction, Response } from "express";
 import { AccountService } from "../services/account.service";
 import { AuthRequest } from "../middlewares/auth.middleware";
 
@@ -8,7 +8,7 @@ import { AuthRequest } from "../middlewares/auth.middleware";
  * @route GET /api/accounts
  * @access Private
  */
-export const getUserAccounts = async (req: AuthRequest, res: Response) => {
+export const getUserAccounts = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
 
@@ -22,11 +22,7 @@ export const getUserAccounts = async (req: AuthRequest, res: Response) => {
       accounts,
     });
   } catch (error) {
-    console.error("Error en getUserAccounts:", error);
-    res.status(500).json({
-      message: "Error al obtener las cuentas",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -35,7 +31,7 @@ export const getUserAccounts = async (req: AuthRequest, res: Response) => {
  * @route GET /api/accounts/:id
  * @access Private
  */
-export const getAccountById = async (req: AuthRequest, res: Response) => {
+export const getAccountById = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -55,11 +51,7 @@ export const getAccountById = async (req: AuthRequest, res: Response) => {
       account,
     });
   } catch (error) {
-    console.error("Error en getAccountById:", error);
-    res.status(500).json({
-      message: "Error al obtener la cuenta",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -68,32 +60,20 @@ export const getAccountById = async (req: AuthRequest, res: Response) => {
  * @route POST /api/accounts
  * @access Private
  */
-export const createAccount = async (req: AuthRequest, res: Response) => {
+export const createAccount = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
+    const { name, balance, account_linked, type } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
-      return res.status(401).json({ message: "Usuario no autenticado" });
-    }
-
-    const { balance, account_linked, type } = req.body;
-
-    // Validaciones
-    if (balance === undefined || balance === null) {
-      return res.status(400).json({ message: "El balance es requerido" });
-    }
-
-    if (!type) {
-      return res.status(400).json({ message: "El tipo de cuenta es requerido" });
-    }
-
-    // Validar que el balance sea un número
-    if (isNaN(balance)) {
-      return res.status(400).json({ message: "El balance debe ser un número" });
+      return res.status(401).json({
+        message: 'No autenticado'
+      });
     }
 
     const accountData = {
       user_id: userId,
+      name,
       balance: Number(balance),
       account_linked,
       type,
@@ -106,11 +86,7 @@ export const createAccount = async (req: AuthRequest, res: Response) => {
       account: newAccount,
     });
   } catch (error) {
-    console.error("Error en createAccount:", error);
-    res.status(500).json({
-      message: "Error al crear la cuenta",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -119,7 +95,7 @@ export const createAccount = async (req: AuthRequest, res: Response) => {
  * @route PUT /api/accounts/:id
  * @access Private
  */
-export const updateAccount = async (req: AuthRequest, res: Response) => {
+export const updateAccount = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -128,24 +104,19 @@ export const updateAccount = async (req: AuthRequest, res: Response) => {
       return res.status(401).json({ message: "Usuario no autenticado" });
     }
 
-    const { balance, account_linked, type } = req.body;
-
-    // Validar que al menos un campo esté presente
-    if (!balance && !account_linked && !type) {
-      return res.status(400).json({
-        message: "Debe proporcionar al menos un campo para actualizar",
-      });
-    }
+    const { name, balance, account_linked, type } = req.body;
 
     const updateData: any = {};
+    if (name !== undefined) updateData.name = name;
     if (balance !== undefined) updateData.balance = Number(balance);
-    if (account_linked !== undefined) updateData.account_linked = account_linked;
+    if (account_linked !== undefined)
+      updateData.account_linked = account_linked;
     if (type !== undefined) updateData.type = type;
 
     const updatedAccount = await AccountService.updateAccount(
       id,
       userId,
-      updateData
+      updateData,
     );
 
     res.status(200).json({
@@ -153,11 +124,7 @@ export const updateAccount = async (req: AuthRequest, res: Response) => {
       account: updatedAccount,
     });
   } catch (error) {
-    console.error("Error en updateAccount:", error);
-    res.status(500).json({
-      message: "Error al actualizar la cuenta",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -166,7 +133,7 @@ export const updateAccount = async (req: AuthRequest, res: Response) => {
  * @route DELETE /api/accounts/:id
  * @access Private
  */
-export const deleteAccount = async (req: AuthRequest, res: Response) => {
+export const deleteAccount = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -179,11 +146,7 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
 
     res.status(200).json(result);
   } catch (error) {
-    console.error("Error en deleteAccount:", error);
-    res.status(500).json({
-      message: "Error al eliminar la cuenta",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
 
@@ -192,7 +155,7 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
  * @route GET /api/accounts/balance/total
  * @access Private
  */
-export const getTotalBalance = async (req: AuthRequest, res: Response) => {
+export const getTotalBalance = async (req: AuthRequest, res: Response, next: NextFunction) => {
   try {
     const userId = req.user?.id;
 
@@ -207,10 +170,6 @@ export const getTotalBalance = async (req: AuthRequest, res: Response) => {
       ...balanceInfo,
     });
   } catch (error) {
-    console.error("Error en getTotalBalance:", error);
-    res.status(500).json({
-      message: "Error al obtener el balance total",
-      error: error instanceof Error ? error.message : "Error desconocido",
-    });
+    next(error);
   }
 };
