@@ -13,8 +13,8 @@ const options: swaggerJsdoc.Options = {
     },
     servers: [
       {
-        url: 'http://localhost:3000',
-        description: 'Desarrollo local',
+        url: process.env.APP_URL || 'http://localhost:3000',
+        description: process.env.APP_URL ? 'Producción / Fly.io' : 'Desarrollo local',
       },
     ],
     components: {

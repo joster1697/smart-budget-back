@@ -14,12 +14,17 @@ import categoryRoutes from "./routes/category.routes";
 import transactionRoutes from "./routes/transaction.routes";
 import agentRoutes from "./routes/agent.routes";
 import { createAgentGateway } from "./gateway/agent.gateway";
-import { startTelegramBot } from "./gateway/telegram.gateway";
+import { startTelegramBot, telegramWebhookCallback } from "./gateway/telegram.gateway";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Telegram Webhook (antes del body parser)
+if (process.env.TELEGRAM_BOT_TOKEN) {
+  app.use(telegramWebhookCallback);
+}
 
 // Middlewares base
 app.use(cors());
@@ -63,7 +68,9 @@ async function startServer() {
       console.log(`🛠️  Environment: ${process.env.NODE_ENV || 'development'}`);
     });
 
-    startTelegramBot();
+    if (process.env.TELEGRAM_BOT_TOKEN) {
+      await startTelegramBot();
+    }
     
   } catch (error) {
     console.error("❌ Failed to start server:", error);

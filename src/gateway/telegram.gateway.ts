@@ -4,11 +4,9 @@ import { User } from '../database/models/user';
 import { ActionExecutorService } from '../services/action-executor.service';
 import { processInput, ResolvedAction } from '../services/channel-processor';
 import { AudioTranscriptionService } from '../services/ai/audio-transcription.service';
+import { SessionService } from '../services/session.service';
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
-
-// Sesiones en memoria por chatId (equivalente a ws.pendingActions)
-const sessions = new Map<string, ResolvedAction[]>();
 
 // ── Busca o crea el usuario por chatId ────────────────────────────────────────
 async function findOrCreateUser(chatId: string, firstName: string): Promise<User> {
@@ -57,7 +55,7 @@ bot.on('text', async (ctx) => {
 
   const actions = await processInput(user.id, text.trim(), 'text');
 
-  sessions.set(chatId, actions);
+  await SessionService.set(chatId, actions);
 
   for (let i = 0; i < actions.length; i++) {
     const action = actions[i];
@@ -118,7 +116,7 @@ bot.on('voice', async (ctx) => {
 
   const actions = await processInput(user.id, text.trim(), 'audio');
 
-  sessions.set(chatId, actions);
+  await SessionService.set(chatId, actions);
 
   for (let i = 0; i < actions.length; i++) {
     const action = actions[i];
@@ -165,11 +163,11 @@ bot.on('callback_query', async (ctx) => {
   const user = await User.findOne({ where: { telegram_chat_id: chatId } });
   if (!user) return ctx.answerCbQuery('Sesión expirada.');
 
-  const pending = sessions.get(chatId);
+  const pending = await SessionService.get(chatId);
   await ctx.answerCbQuery();
 
   if (data === 'cancel') {
-    sessions.delete(chatId);
+    await SessionService.delete(chatId);
     return ctx.reply('❌ Cancelado.');
   }
 
@@ -190,9 +188,16 @@ bot.on('callback_query', async (ctx) => {
   }
 });
 
-export function startTelegramBot() {
-  bot.launch();
-  console.log('🤖 Telegram bot iniciado (long polling)');
+export async function startTelegramBot() {
+  if (process.env.NODE_ENV === 'production' && process.env.APP_URL) {
+    const webhookUrl = `${process.env.APP_URL}/telegram`;
+    await bot.telegram.setWebhook(webhookUrl);
+    console.log(`🤖 Telegram bot (Webhook) registrado en: ${webhookUrl}`);
+  } else {
+    bot.launch();
+    console.log('🤖 Telegram bot iniciado (long polling)');
+  }
 }
 
+export const telegramWebhookCallback = bot.webhookCallback('/telegram');
 export { bot }; // exportar para envío proactivo
