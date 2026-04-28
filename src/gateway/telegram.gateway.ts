@@ -3,6 +3,7 @@ import { Telegraf } from 'telegraf';
 import { User } from '../database/models/user';
 import { ActionExecutorService } from '../services/action-executor.service';
 import { processInput, ResolvedAction } from '../services/channel-processor';
+import { AudioTranscriptionService } from '../services/ai/audio-transcription.service';
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
 
@@ -55,6 +56,67 @@ bot.on('text', async (ctx) => {
   await ctx.sendChatAction('typing');
 
   const actions = await processInput(user.id, text.trim(), 'text');
+
+  sessions.set(chatId, actions);
+
+  for (let i = 0; i < actions.length; i++) {
+    const action = actions[i];
+
+    if (action.status === 'READY') {
+      const result = await ActionExecutorService.execute(
+        { ...action, resolved_id: (action.candidates as any)?.[0]?.id },
+        user.id,
+      );
+      await ctx.reply(result.message);
+
+    } else if (action.status === 'NEEDS_CONFIRMATION') {
+      await ctx.reply(
+        action.follow_up_question ?? '¿Confirmas?',
+        {
+          reply_markup: {
+            inline_keyboard: [[
+              { text: '✅ Confirmar', callback_data: `confirm:${i}` },
+              { text: '❌ Cancelar', callback_data: 'cancel' },
+            ]],
+          },
+        },
+      );
+
+    } else if (action.status === 'AMBIGUOUS') {
+      const buttons = (action.candidates as any[]).map((c, ci) => ([
+        { text: c.description ?? c.name ?? `Opción ${ci + 1}`, callback_data: `select:${i}:${ci}` },
+      ]));
+      buttons.push([{ text: '❌ Cancelar', callback_data: 'cancel' }]);
+      await ctx.reply(action.follow_up_question ?? 'Selecciona cuál:', {
+        reply_markup: { inline_keyboard: buttons },
+      });
+
+    } else if (action.status === 'NEEDS_CLARIFICATION') {
+      await ctx.reply(action.follow_up_question ?? '¿Puedes dar más detalles?');
+    }
+  }
+});
+
+// ── Mensajes de voz ─────────────────────────────────────────────────────────
+bot.on('voice', async (ctx) => {
+  const chatId = String(ctx.chat.id);
+  const firstName = ctx.from?.first_name ?? 'Usuario';
+  const user = await findOrCreateUser(chatId, firstName);
+
+  await ctx.sendChatAction('typing');
+
+  // Descargar audio desde Telegram
+  const fileLink = await ctx.telegram.getFileLink(ctx.message.voice.file_id);
+  const response = await fetch(fileLink.href);
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  // Transcribir con Gemini
+  const text = await AudioTranscriptionService.transcribe(buffer, 'audio/ogg');
+
+  await ctx.reply(`🎙️ Entendí: "${text}"`);
+
+  const actions = await processInput(user.id, text.trim(), 'audio');
 
   sessions.set(chatId, actions);
 
