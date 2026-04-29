@@ -22,6 +22,7 @@ export type UserCreationAttributes = Optional<
     name: string;
     email: string;
     password: string;
+    base_currency?: string;
   },
   "id"
 >;
@@ -48,6 +49,11 @@ export class User extends Model<User, UserCreationAttributes> {
   @AllowNull(false)
   @Column(DataType.STRING)
   password!: string;
+
+  @Default("CRC")
+  @AllowNull(false)
+  @Column(DataType.STRING(3))
+  base_currency!: string;
 
   @Unique
   @AllowNull(true)
