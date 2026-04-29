@@ -1,38 +1,19 @@
 steps:
   # Step 1: Build the production Docker image
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '--target=production'
-      - '-t'
-      - '$_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
-      - '.'
+    args: ['build', '--target=production', '-t', 'us-east4-docker.pkg.dev/project-33776ba6-d443-4e4b-a19/cloud-run-source-deploy/smart-budget-back/smart-budget-back', '.']
 
   # Step 2: Push the image to Artifact Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - '$_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
+    args: ['push', 'us-east4-docker.pkg.dev/project-33776ba6-d443-4e4b-a19/cloud-run-source-deploy/smart-budget-back/smart-budget-back']
 
   # Step 3: Deploy to Cloud Run
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - '$_SERVICE_NAME'
-      - '--image=$_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
-      - '--region=$_DEPLOY_REGION'
-      - '--platform=managed'
+    args: ['run', 'deploy', 'smart-budget-back', '--image', 'us-east4-docker.pkg.dev/project-33776ba6-d443-4e4b-a19/cloud-run-source-deploy/smart-budget-back/smart-budget-back', '--region', 'us-east4']
 
 images:
-  - '$_AR_HOSTNAME/$PROJECT_ID/cloud-run-source-deploy/$REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA'
-
-substitutions:
-  _SERVICE_NAME: smart-budget-back
-  _AR_HOSTNAME: us-east4-docker.pkg.dev
-  _DEPLOY_REGION: us-east4
+  - 'us-east4-docker.pkg.dev/project-33776ba6-d443-4e4b-a19/cloud-run-source-deploy/smart-budget-back/smart-budget-back'
 
 options:
   logging: CLOUD_LOGGING_ONLY
-  dynamicSubstitutions: true
