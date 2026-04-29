@@ -26,6 +26,12 @@ const config = {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 3306,
     dialect: 'mysql',
+    dialectOptions: {
+      ssl: {
+        require: true,
+        rejectUnauthorized: true
+      }
+    }
   },
 };
 
