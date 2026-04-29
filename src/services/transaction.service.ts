@@ -2,9 +2,13 @@
 import { Op } from "sequelize";
 import { Account } from "../database/models";
 import { Category } from "../database/models";
-import { Transaction, TransactionCreationAttributes } from "../database/models/transaction";
+import {
+  Transaction,
+  TransactionCreationAttributes,
+} from "../database/models/transaction";
 import { User } from "../database/models/user";
 import { TransactionSearchCriteria } from "./ai/ingestion.service";
+import { ExchangeRateService } from "./exchange-rate.service";
 
 export interface ITransactionFilters {
   date_from?: string;
@@ -20,6 +24,9 @@ export interface ITransactionCreate {
   user_id: string;
   account_id: string;
   amount: number;
+  original_currency?: string;
+  original_amount?: number;
+  exchange_rate?: number;
   category_id?: string;
   type: string;
   description: string;
@@ -81,6 +88,29 @@ export class TransactionService {
     if (!user) {
       throw new Error("Usuario no encontrado");
     }
+    //Conversion de Divisas
+    const baseCurrency = user.base_currency || "CRC";
+    const originalCurrency = transactionData.original_currency || baseCurrency;
+
+    //Si el gasto viene en una moeda distinta a la cuenta del usuario
+    if (originalCurrency !== baseCurrency) {
+      console.log(
+        `Convirtiendo gasto de ${originalCurrency} a ${baseCurrency}...`,
+      );
+      //Llamamos al servicio para obtener tipo de cambio
+      const rate = await ExchangeRateService.getrate(
+        originalCurrency,
+        baseCurrency,
+      );
+      //Se guardan los valores originales para que no se pierdan
+      transactionData.original_amount = transactionData.amount;
+      transactionData.exchange_rate = rate;
+      transactionData.original_currency = originalCurrency;
+      //Se calcula el monto  de la moneda local del usuario
+      transactionData.amount = Number(
+        (transactionData.amount * rate).toFixed(2),
+      );
+    }
 
     // Si hay una cuenta vinculada, verificar que existe y pertenece al usuario
     let linkedAccount = null;
@@ -92,7 +122,9 @@ export class TransactionService {
         },
       });
       if (!linkedAccount) {
-        throw new Error("La cuenta vinculada no existe o no pertenece al usuario");
+        throw new Error(
+          "La cuenta vinculada no existe o no pertenece al usuario",
+        );
       }
     }
 
@@ -101,20 +133,26 @@ export class TransactionService {
       user_id: transactionData.user_id,
       account_id: transactionData.account_id,
       amount: transactionData.amount,
+      original_currency: transactionData.original_currency, // Se agrego para que IA o web accesen,se hace la conversion y se agrega de manera automatica
+      original_amount: transactionData.original_amount, // Se agrego para que IA o web accesen,se hace la conversion y se agrega de manera automatica
+      exchange_rate: transactionData.exchange_rate, // Se agrego para que IA o web accesen,se hace la conversion y se agrega de manera automatica
       category_id: transactionData.category_id,
       type: transactionData.type,
       description: transactionData.description,
       date: transactionData.date ? new Date(transactionData.date) : new Date(),
       merchant: transactionData.merchant,
-      notes: transactionData.notes,
+      // notes: transactionData.notes,
     };
 
     const created = await Transaction.create(transactionToCreate);
 
     // Actualizar el saldo de la cuenta
     if (linkedAccount) {
-      const delta = transactionData.type === 'income' ? transactionData.amount : -transactionData.amount;
-      await linkedAccount.increment('balance', { by: delta });
+      const delta =
+        transactionData.type === "income"
+          ? transactionData.amount
+          : -transactionData.amount;
+      await linkedAccount.increment("balance", { by: delta });
     }
 
     return created;
@@ -123,7 +161,11 @@ export class TransactionService {
   /**
    * Actualizar una transacción existente
    */
-  static async updateTransaction(transactionId: string, userId: string, updateData: ITransactionUpdate) {
+  static async updateTransaction(
+    transactionId: string,
+    userId: string,
+    updateData: ITransactionUpdate,
+  ) {
     const transaction = await Transaction.findOne({
       where: { id: transactionId, user_id: userId },
     });
@@ -138,7 +180,7 @@ export class TransactionService {
         where: { id: updateData.account_id, user_id: userId },
       });
       if (!account) {
-        throw new Error('La cuenta no existe o no pertenece al usuario');
+        throw new Error("La cuenta no existe o no pertenece al usuario");
       }
     }
 
@@ -147,19 +189,19 @@ export class TransactionService {
     // Recalcular el impacto en el saldo si cambia amount o type
     if (updateData.amount !== undefined || updateData.type !== undefined) {
       const oldAmount = Number(transaction.amount ?? 0);
-      const oldType = transaction.type ?? 'expense';
+      const oldType = transaction.type ?? "expense";
       const newAmount = updateData.amount ?? oldAmount;
       const newType = updateData.type ?? oldType;
 
-      const oldDelta = oldType === 'income' ? oldAmount : -oldAmount;
-      const newDelta = newType === 'income' ? newAmount : -newAmount;
+      const oldDelta = oldType === "income" ? oldAmount : -oldAmount;
+      const newDelta = newType === "income" ? newAmount : -newAmount;
       const net = newDelta - oldDelta;
 
       if (net !== 0) {
         const accountId = updateData.account_id ?? transaction.account_id;
         if (accountId) {
           const account = await Account.findByPk(accountId);
-          if (account) await account.increment('balance', { by: net });
+          if (account) await account.increment("balance", { by: net });
         }
       }
     }
@@ -180,11 +222,18 @@ export class TransactionService {
     }
 
     // Revertir el impacto en el saldo de la cuenta antes de eliminar
-    if (transaction.account_id && transaction.amount != null && transaction.type) {
+    if (
+      transaction.account_id &&
+      transaction.amount != null &&
+      transaction.type
+    ) {
       const account = await Account.findByPk(transaction.account_id);
       if (account) {
-        const revertDelta = transaction.type === 'income' ? -Number(transaction.amount) : Number(transaction.amount);
-        await account.increment('balance', { by: revertDelta });
+        const revertDelta =
+          transaction.type === "income"
+            ? -Number(transaction.amount)
+            : Number(transaction.amount);
+        await account.increment("balance", { by: revertDelta });
       }
     }
 
@@ -196,7 +245,10 @@ export class TransactionService {
    * Busca transacciones del usuario usando criterios semánticos del agente.
    * Usado para UPDATE y DELETE para identificar la transacción objetivo.
    */
-  static async searchByContext(userId: string, criteria: TransactionSearchCriteria) {
+  static async searchByContext(
+    userId: string,
+    criteria: TransactionSearchCriteria,
+  ) {
     const where: Record<string, unknown> = { user_id: userId };
 
     if (criteria.merchant) {
@@ -214,7 +266,7 @@ export class TransactionService {
 
     return await Transaction.findAll({
       where: where as any,
-      order: [['date', 'DESC']],
+      order: [["date", "DESC"]],
       limit: 5,
     });
   }
@@ -226,8 +278,12 @@ export class TransactionService {
     const where: Record<string, unknown> = { user_id: userId };
 
     if (filters.date_from || filters.date_to) {
-      const from = filters.date_from ? new Date(filters.date_from) : new Date(0);
-      const to = filters.date_to ? new Date(`${filters.date_to}T23:59:59.999`) : new Date();
+      const from = filters.date_from
+        ? new Date(filters.date_from)
+        : new Date(0);
+      const to = filters.date_to
+        ? new Date(`${filters.date_to}T23:59:59.999`)
+        : new Date();
       where.date = { [Op.between]: [from, to] };
     }
     if (filters.account_id) where.account_id = filters.account_id;
@@ -237,10 +293,10 @@ export class TransactionService {
     return await Transaction.findAll({
       where: where as any,
       include: [
-        { model: Account, attributes: ['id', 'name'] },
-        { model: Category, attributes: ['id', 'name'] },
+        { model: Account, attributes: ["id", "name"] },
+        { model: Category, attributes: ["id", "name"] },
       ],
-      order: [['date', 'DESC']],
+      order: [["date", "DESC"]],
       limit: filters.limit ?? 20,
     });
   }

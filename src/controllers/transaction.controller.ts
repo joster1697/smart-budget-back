@@ -8,7 +8,11 @@ import { TransactionService } from "../services/transaction.service";
  * @route GET /api/transactions
  * @access Private
  */
-export const getUserTransactions = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getUserTransactions = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
 
@@ -16,7 +20,8 @@ export const getUserTransactions = async (req: AuthRequest, res: Response, next:
       return res.status(401).json({ message: "Usuario no autenticado" });
     }
 
-    const transactions = await TransactionService.getTransactionsByUserId(userId);
+    const transactions =
+      await TransactionService.getTransactionsByUserId(userId);
     res.status(200).json({
       message: "Transacciones obtenidas exitosamente",
       transactions,
@@ -31,7 +36,11 @@ export const getUserTransactions = async (req: AuthRequest, res: Response, next:
  * @route GET /api/transactions/:id
  * @access Private
  */
-export const getTransactionById = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getTransactionById = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -60,14 +69,26 @@ export const getTransactionById = async (req: AuthRequest, res: Response, next: 
  * @route POST /api/transactions
  * @access Private
  */
-export const createTransaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createTransaction = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
-    const { account_id, amount, category_id, type, description, date } = req.body;
+    const {
+      account_id,
+      amount,
+      category_id,
+      type,
+      description,
+      date,
+      original_currency,
+    } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
-        message: 'No autenticado'
+        message: "No autenticado",
       });
     }
 
@@ -79,9 +100,11 @@ export const createTransaction = async (req: AuthRequest, res: Response, next: N
       type,
       description,
       date,
+      original_currency,
     };
 
-    const newTransaction = await TransactionService.createTransaction(transactionData);
+    const newTransaction =
+      await TransactionService.createTransaction(transactionData);
 
     res.status(201).json({
       message: "Transacción creada exitosamente",
@@ -97,7 +120,11 @@ export const createTransaction = async (req: AuthRequest, res: Response, next: N
  * @route PUT /api/transactions/:id
  * @access Private
  */
-export const updateTransaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateTransaction = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -106,7 +133,8 @@ export const updateTransaction = async (req: AuthRequest, res: Response, next: N
       return res.status(401).json({ message: "Usuario no autenticado" });
     }
 
-    const { account_id, amount, category_id, type, description, date } = req.body;
+    const { account_id, amount, category_id, type, description, date } =
+      req.body;
 
     const updated = await TransactionService.updateTransaction(id, userId, {
       account_id,
@@ -135,7 +163,11 @@ export const updateTransaction = async (req: AuthRequest, res: Response, next: N
  * @route DELETE /api/transactions/:id
  * @access Private
  */
-export const deleteTransaction = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteTransaction = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -155,4 +187,3 @@ export const deleteTransaction = async (req: AuthRequest, res: Response, next: N
     next(error);
   }
 };
-
