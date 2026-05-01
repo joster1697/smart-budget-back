@@ -10,6 +10,8 @@ const config = {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 3306,
     dialect: 'mysql',
+    seederStorage: 'sequelize',
+    seederStorageTableName: 'SequelizeData',
   },
   test: {
     username: process.env.DB_USER,
@@ -18,6 +20,8 @@ const config = {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 3306,
     dialect: 'mysql',
+    seederStorage: 'sequelize',
+    seederStorageTableName: 'SequelizeData',
   },
   production: {
     username: process.env.DB_USER,
@@ -26,6 +30,8 @@ const config = {
     host: process.env.DB_HOST,
     port: Number(process.env.DB_PORT) || 3306,
     dialect: 'mysql',
+    seederStorage: 'sequelize',
+    seederStorageTableName: 'SequelizeData',
     dialectOptions: {
       ssl: {
         require: true,
