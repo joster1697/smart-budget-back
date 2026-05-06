@@ -4,6 +4,12 @@ import { ResolvedAction } from './channel-processor';
 // Inicializar el cliente de Redis si REDIS_URL está presente
 const redisClient = process.env.REDIS_URL ? new Redis(process.env.REDIS_URL) : null;
 
+if (redisClient) {
+  redisClient.on('error', (err) => {
+    console.error('[Redis] Connection error:', err.message);
+  });
+}
+
 // Fallback a Map en memoria si no hay Redis (útil para desarrollo local rápido)
 const memorySessions = new Map<string, { data: ResolvedAction[], expiresAt: number }>();
 
@@ -16,13 +22,17 @@ export class SessionService {
    */
   static async set(chatId: string, actions: ResolvedAction[], ttlSeconds: number = 300): Promise<void> {
     if (redisClient) {
-      await redisClient.set(`session:${chatId}`, JSON.stringify(actions), 'EX', ttlSeconds);
-    } else {
-      memorySessions.set(chatId, {
-        data: actions,
-        expiresAt: Date.now() + ttlSeconds * 1000
-      });
+      try {
+        await redisClient.set(`session:${chatId}`, JSON.stringify(actions), 'EX', ttlSeconds);
+        return;
+      } catch (err) {
+        console.error('[Redis] set failed, falling back to memory:', (err as Error).message);
+      }
     }
+    memorySessions.set(chatId, {
+      data: actions,
+      expiresAt: Date.now() + ttlSeconds * 1000
+    });
   }
 
   /**
@@ -32,22 +42,21 @@ export class SessionService {
    */
   static async get(chatId: string): Promise<ResolvedAction[] | null> {
     if (redisClient) {
-      const data = await redisClient.get(`session:${chatId}`);
-      if (!data) return null;
       try {
+        const data = await redisClient.get(`session:${chatId}`);
+        if (!data) return null;
         return JSON.parse(data);
-      } catch {
-        return null;
+      } catch (err) {
+        console.error('[Redis] get failed, falling back to memory:', (err as Error).message);
       }
-    } else {
-      const session = memorySessions.get(chatId);
-      if (!session) return null;
-      if (Date.now() > session.expiresAt) {
-        memorySessions.delete(chatId);
-        return null;
-      }
-      return session.data;
     }
+    const session = memorySessions.get(chatId);
+    if (!session) return null;
+    if (Date.now() > session.expiresAt) {
+      memorySessions.delete(chatId);
+      return null;
+    }
+    return session.data;
   }
 
   /**
@@ -56,9 +65,13 @@ export class SessionService {
    */
   static async delete(chatId: string): Promise<void> {
     if (redisClient) {
-      await redisClient.del(`session:${chatId}`);
-    } else {
-      memorySessions.delete(chatId);
+      try {
+        await redisClient.del(`session:${chatId}`);
+        return;
+      } catch (err) {
+        console.error('[Redis] delete failed, falling back to memory:', (err as Error).message);
+      }
     }
+    memorySessions.delete(chatId);
   }
 }

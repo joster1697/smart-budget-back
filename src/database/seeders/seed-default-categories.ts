@@ -1,4 +1,4 @@
-import { QueryInterface } from 'sequelize';
+import { QueryInterface, QueryTypes } from 'sequelize';
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { v4: uuidv4 } = require('uuid') as { v4: () => string };
 
@@ -18,10 +18,10 @@ const SYSTEM_CATEGORIES = [
 
 module.exports = {
   async up(queryInterface: QueryInterface) {
-    const existing = await queryInterface.sequelize.query(
+    const existing = await queryInterface.sequelize.query<{ name: string }>(
       'SELECT name FROM categories WHERE user_id IS NULL',
-      { plain: false },
-    ) as { name: string }[];
+      { type: QueryTypes.SELECT },
+    );
     const existingNames = new Set(existing.map((r) => r.name));
 
     const toInsert = SYSTEM_CATEGORIES

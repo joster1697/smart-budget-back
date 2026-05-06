@@ -8,6 +8,11 @@ import { SessionService } from '../services/session.service';
 
 const bot = new Telegraf(process.env.TELEGRAM_BOT_TOKEN!);
 
+bot.catch((err, ctx) => {
+  console.error(`[Telegram] Error handling update ${ctx.update.update_id}:`, err);
+  ctx.reply('⚠️ Ocurrió un error procesando tu mensaje. Intenta de nuevo.').catch(() => {});
+});
+
 // ── Busca o crea el usuario por chatId ────────────────────────────────────────
 async function findOrCreateUser(chatId: string, firstName: string): Promise<User> {
   let user = await User.findOne({ where: { telegram_chat_id: chatId } });
