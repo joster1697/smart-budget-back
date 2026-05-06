@@ -89,7 +89,7 @@ Para CREATE_TRANSACTION, responde:
   "intent": "CREATE_TRANSACTION",
   "data": {
     "amount": <número positivo, normaliza "5.000"→5000, "$3.50"→3.50>,
-    "currency": <"CRC" por defecto si no se menciona, o código ISO 4217>,
+    "currency": <código ISO 4217 de la moneda (ej: "USD" para dólares, "EUR" para euros), o "CRC" por defecto si no se menciona>,
     "type": <"expense" si el usuario gastó/pagó/compró/salió dinero, "income" si recibió/ganó/ingresó/entró dinero>,
     "merchant": <nombre del comercio o null>,
     "account_id": <UUID de la lista de cuentas según las reglas anteriores, o null>,

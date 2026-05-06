@@ -7,31 +7,40 @@ import {
   Default,
   AllowNull,
   ForeignKey,
-  BelongsTo
-} from 'sequelize-typescript';
-import { User } from './user';
-import { Account } from './account';
-import { Category } from './category';
-import { Optional } from 'sequelize';
+  BelongsTo,
+} from "sequelize-typescript";
+import { User } from "./user";
+import { Account } from "./account";
+import { Category } from "./category";
+import { Optional } from "sequelize";
 
-export type TransactionCreationAttributes = Optional<{
-  id?: string;
-  user_id: string;
-  account_id: string;
-  amount: number;
-  category_id?: string;
-  type: string;
-  description?: string;
-  merchant?: string;
-  date?: Date;
-  notes?: string;
-}, 'id' | 'category_id'>;
+export type TransactionCreationAttributes = Optional<
+  {
+    id?: string;
+    user_id: string;
+    account_id: string;
+    amount: number;
+    category_id?: string;
+    type: string;
+    description?: string;
+    merchant?: string;
+    date?: Date;
+    notes?: string;
+    original_currency?: string;
+    original_amount?: number;
+    exchange_rate?: number;
+  },
+  "id" | "category_id"
+>;
 
 @Table({
-  tableName: 'transactions',
-  timestamps: true
+  tableName: "transactions",
+  timestamps: true,
 })
-export class Transaction extends Model<Transaction, TransactionCreationAttributes> {
+export class Transaction extends Model<
+  Transaction,
+  TransactionCreationAttributes
+> {
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
@@ -55,6 +64,18 @@ export class Transaction extends Model<Transaction, TransactionCreationAttribute
   @AllowNull(true)
   @Column(DataType.DECIMAL)
   amount?: number;
+
+  @AllowNull(true)
+  @Column(DataType.STRING(3))
+  original_currency?: string;
+
+  @AllowNull(true)
+  @Column(DataType.DECIMAL(10, 2))
+  original_amount?: number;
+
+  @AllowNull(true)
+  @Column(DataType.DECIMAL(10, 4))
+  exchange_rate?: number;
 
   @AllowNull(true)
   @Column(DataType.STRING)
