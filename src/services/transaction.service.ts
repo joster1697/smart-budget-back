@@ -152,7 +152,29 @@ export class TransactionService {
         transactionData.type === "income"
           ? transactionData.amount
           : -transactionData.amount;
+
+      //Actualiza el balance real de la tarjeta
       await linkedAccount.increment("balance", { by: delta });
+
+      // Logica de Saldo Reservado(Escudo de Saldo)
+      // Si esta tarjeta esta vinculada a otra cuenta(ej:debito)
+      if (linkedAccount.account_linked) {
+        const debitAccount = await Account.findByPk(
+          linkedAccount.account_linked,
+        );
+        if (debitAccount) {
+          if (transactionData.type === "expense") {
+            //Si gastamos,la deuda crece -> Aumenta el saldo reservado en el debito
+            await debitAccount.increment("reserved_balance", {
+              by: transactionData.amount,
+            });
+          } else if (transactionData.type === "income") {
+            await debitAccount.decrement("reserved_balance", {
+              by: transactionData.amount,
+            });
+          }
+        }
+      }
     }
 
     return created;
@@ -233,7 +255,25 @@ export class TransactionService {
           transaction.type === "income"
             ? -Number(transaction.amount)
             : Number(transaction.amount);
+        //Revertir el balance real
         await account.increment("balance", { by: revertDelta });
+        // Revertir saldo reservado
+        if (account.account_linked) {
+          const debitAccount = await Account.findByPk(account.account_linked);
+          if (debitAccount) {
+            if (transaction.type === "expense") {
+              //Si borramos un gasto,la deuda desaparece -> Reduce el saldo reservado
+              await debitAccount.decrement("reserved_balance", {
+                by: Number(transaction.amount),
+              });
+            } else if (transaction.type === "income") {
+              // Si borramos un pago a la tarjeta, la deuda vuelve -> Sumamos al saldo reservado
+              await debitAccount.increment("reserved_balance", {
+                by: Number(transaction.amount),
+              });
+            }
+          }
+        }
       }
     }
 

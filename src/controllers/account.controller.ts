@@ -8,7 +8,11 @@ import { AuthRequest } from "../middlewares/auth.middleware";
  * @route GET /api/accounts
  * @access Private
  */
-export const getUserAccounts = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getUserAccounts = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
 
@@ -31,7 +35,11 @@ export const getUserAccounts = async (req: AuthRequest, res: Response, next: Nex
  * @route GET /api/accounts/:id
  * @access Private
  */
-export const getAccountById = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getAccountById = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -60,14 +68,18 @@ export const getAccountById = async (req: AuthRequest, res: Response, next: Next
  * @route POST /api/accounts
  * @access Private
  */
-export const createAccount = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const createAccount = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const { name, balance, account_linked, type } = req.body;
     const userId = req.user?.id;
 
     if (!userId) {
       return res.status(401).json({
-        message: 'No autenticado'
+        message: "No autenticado",
       });
     }
 
@@ -95,7 +107,11 @@ export const createAccount = async (req: AuthRequest, res: Response, next: NextF
  * @route PUT /api/accounts/:id
  * @access Private
  */
-export const updateAccount = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const updateAccount = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -133,7 +149,11 @@ export const updateAccount = async (req: AuthRequest, res: Response, next: NextF
  * @route DELETE /api/accounts/:id
  * @access Private
  */
-export const deleteAccount = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const deleteAccount = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
     const { id } = req.params;
@@ -155,7 +175,11 @@ export const deleteAccount = async (req: AuthRequest, res: Response, next: NextF
  * @route GET /api/accounts/balance/total
  * @access Private
  */
-export const getTotalBalance = async (req: AuthRequest, res: Response, next: NextFunction) => {
+export const getTotalBalance = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
   try {
     const userId = req.user?.id;
 
@@ -168,6 +192,75 @@ export const getTotalBalance = async (req: AuthRequest, res: Response, next: Nex
     res.status(200).json({
       message: "Balance total obtenido exitosamente",
       ...balanceInfo,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**  Vincular una cuenta  a otra (ej:tarjeta a debito)
+ *@route POST  /api/accounts/:id/link
+ *@access Private
+ */
+export const linkAccount = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params; //Sacamos id de la cuenta desde la URL
+    const { targetAccountId } = req.body; // Sacamos el ID destino desde el cuerpo de la peticion
+
+    if (!userId) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
+    if (!targetAccountId) {
+      return res.status(400).json({
+        message: "Se requiere targetAccountId en el cuerpo de la peticion",
+      });
+    }
+
+    //Llamado al servicio
+    const linkedAccount = await AccountService.linkAccount(
+      id,
+      targetAccountId,
+      userId,
+    );
+
+    res.status(200).json({
+      message: "Cuenta vinculada satisfactoriamente",
+      account: linkedAccount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+/* Desvincular una cuenta
+ * @route POST /api/accounts/:id/unlink
+ * @access Private
+ */
+
+export const unlinkAccount = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const userId = req.user?.id;
+    const { id } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ message: "Usuario no autenticado" });
+    }
+
+    //Llamado al servicio
+    const unlinkedAccount = await AccountService.unlinkAccount(id, userId);
+
+    res.status(200).json({
+      message: "Cuenta desvinculada exitosamente",
+      account: unlinkedAccount,
     });
   } catch (error) {
     next(error);
