@@ -78,7 +78,9 @@ export class AccountService {
         },
       });
       if (!linkedAccount) {
-        throw new Error("La cuenta vinculada no existe o no pertenece al usuario");
+        throw new Error(
+          "La cuenta vinculada no existe o no pertenece al usuario",
+        );
       }
     }
 
@@ -100,7 +102,7 @@ export class AccountService {
   static async updateAccount(
     accountId: string,
     userId: string,
-    updateData: IAccountUpdate
+    updateData: IAccountUpdate,
   ) {
     // Buscar la cuenta y verificar que pertenece al usuario
     const account = await Account.findOne({
@@ -123,7 +125,9 @@ export class AccountService {
         },
       });
       if (!linkedAccount) {
-        throw new Error("La cuenta vinculada no existe o no pertenece al usuario");
+        throw new Error(
+          "La cuenta vinculada no existe o no pertenece al usuario",
+        );
       }
     }
 
@@ -162,7 +166,7 @@ export class AccountService {
 
     const totalBalance = accounts.reduce(
       (sum, account) => sum + Number(account.balance),
-      0
+      0,
     );
 
     return {
@@ -171,15 +175,55 @@ export class AccountService {
     };
   }
 
-  static async searchByContext(userId: string, criteria: AccountSearchCriteria) {
+  static async searchByContext(
+    userId: string,
+    criteria: AccountSearchCriteria,
+  ) {
     const where: Record<string, unknown> = { user_id: userId };
     if (criteria.name) where.name = { [Op.like]: `%${criteria.name}%` };
     if (criteria.type) where.type = criteria.type;
     return await Account.findAll({
       where,
-      attributes: ['id', 'name', 'type', 'balance'],
+      attributes: ["id", "name", "type", "balance"],
       limit: 5,
-      order: [['updatedAt', 'DESC']],
+      order: [["updatedAt", "DESC"]],
     });
+  }
+
+  // Vincular una cuenta (ej:Tarjeta) => a otra (ej:Cuenta de Debito)
+  static async linkAccount(
+    accountId: string,
+    targetAccountId: string,
+    userId: string,
+  ) {
+    //Buscamos la cuenta que queremnos vincular(tarjeta)
+    const account = await Account.findOne({
+      where: { id: accountId, user_id: userId },
+    });
+    if (!account)
+      throw new Error("la cuenta principal no existe o no te pertenece");
+    //Buscamos la cuenta destino(debito)
+    const targetAccount = await Account.findOne({
+      where: { id: targetAccountId, user_id: userId },
+    });
+    if (!targetAccount) {
+      throw new Error("La cuenta a vincular no existe o no te pertenece");
+    }
+    //Las unimos
+    await account.update({ account_linked: targetAccountId });
+    return account;
+  }
+
+  // Desvincular una cuenta
+  static async unlinkAccount(accountId: string, userId: string) {
+    const account = await Account.findOne({
+      where: { id: accountId, user_id: userId },
+    });
+    if (!account) {
+      throw new Error("La cuenta no existe o no te pertenece");
+    }
+    // Quitamos el vinculo poniendolo en null o undefined
+    await account.update({ account_linked: undefined });
+    return account;
   }
 }

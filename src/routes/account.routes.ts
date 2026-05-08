@@ -7,10 +7,15 @@ import {
   updateAccount,
   deleteAccount,
   getTotalBalance,
+  linkAccount,
+  unlinkAccount,
 } from "../controllers/account.controller";
 import { authenticate } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
-import { createAccountSchema, updateAccountSchema } from "../validators/account.validators";
+import {
+  createAccountSchema,
+  updateAccountSchema,
+} from "../validators/account.validators";
 
 const router = Router();
 
@@ -222,5 +227,9 @@ router.post("/", authenticate, validate(createAccountSchema), createAccount);
 router.put("/:id", authenticate, validate(updateAccountSchema), updateAccount);
 
 router.delete("/:id", authenticate, deleteAccount);
+
+//Rutas para vincular o desvincular Cuentas
+router.post("/:id/link", authenticate, linkAccount);
+router.post("/:id/unlink", authenticate, unlinkAccount);
 
 export default router;
