@@ -3,7 +3,9 @@ import sequelize from "../database/config/sequelize";
 import { UserCreationAttributes } from "../database/models/user";
 import { User } from "../database/models/user";
 import { Account } from "../database/models/account";
-import { Transaction } from "../database/models/transaction";
+import { Transaction as TransactionModel } from "../database/models/transaction";
+import { Category } from "../database/models/category";
+import { DEFAULT_CATEGORIES } from "../config/constants";
 import bcrypt from "bcrypt";
 
 // Interface para creación de usuarios
@@ -23,19 +25,37 @@ export interface IUserUpdate {
 export class UserService {
   static async getAllUsersWithAccounts() {
     return await User.findAll({
-      include: [{ model: Account }, { model: Transaction }],
+      include: [{ model: Account }, { model: TransactionModel }],
       attributes: { exclude: ["password"] }, // No devolver contraseñas
     });
   }
 
   static async createUser(userData: IUserCreate) {
-    const hashedPassword = await bcrypt.hash(userData.password, 10);
-    const userToCreate: UserCreationAttributes = {
-      name: userData.name,
-      email: userData.email,
-      password: hashedPassword,
-    };
-    return await User.create(userToCreate);
+    const transaction = await sequelize.transaction();
+    try {
+      const hashedPassword = await bcrypt.hash(userData.password, 10);
+      const userToCreate: UserCreationAttributes = {
+        name: userData.name,
+        email: userData.email,
+        password: hashedPassword,
+      };
+      
+      const user = await User.create(userToCreate, { transaction });
+
+      // Crear categorías por defecto para el nuevo usuario
+      const categoriesToCreate = DEFAULT_CATEGORIES.map(name => ({
+        name,
+        user_id: user.id
+      }));
+
+      await Category.bulkCreate(categoriesToCreate, { transaction });
+
+      await transaction.commit();
+      return user;
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
   }
 
   static async getUserById(id: string) {

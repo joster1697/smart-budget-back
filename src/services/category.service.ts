@@ -22,11 +22,8 @@ export class CategoryService {
   static async getCategoriesByUserId(userId: string) {
     return await Category.findAll({
       where: {
-        [Op.or]: [
-          { user_id: userId },
-          { user_id: { [Op.is]: null } },
-        ],
-      } as any,
+        user_id: userId,
+      },
       include: [
         {
           model: User,
