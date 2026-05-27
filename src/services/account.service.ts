@@ -223,7 +223,7 @@ export class AccountService {
       throw new Error("La cuenta no existe o no te pertenece");
     }
     // Quitamos el vinculo poniendolo en null o undefined
-    await account.update({ account_linked: undefined });
+    await account.update({ account_linked: null as any });
     return account;
   }
 }
