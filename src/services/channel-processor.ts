@@ -14,6 +14,9 @@ import {
   DeleteAccountPayload,
   UpdateCategoryPayload,
   DeleteCategoryPayload,
+  CreateBudgetPayload,
+  UpdateBudgetPayload,
+  DeleteBudgetPayload,
 } from '../types/agent.types';
 import { TransactionService } from './transaction.service';
 import { AccountService } from './account.service';
@@ -158,6 +161,87 @@ async function resolveAction(userId: string, result: AgentParseResult): Promise<
       return { ...result, status: 'NEEDS_CONFIRMATION', candidates, follow_up_question: `¿Confirmas que quieres eliminar esta categoría?\n\n${summary}` };
     }
     return { ...result, status: 'READY', candidates };
+  }
+
+  if (result.intent === 'CREATE_BUDGET') {
+    let payload = result.data as CreateBudgetPayload;
+    if (!payload.period) {
+      const now = new Date();
+      payload.period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+    // Filtrar para remover objetos de categoría vacíos, nulos o incompletos
+    payload.categories = (payload.categories || []).filter(
+      cat => cat && (cat.category_name || cat.category_id)
+    );
+
+    if (payload.categories && payload.categories.length > 0) {
+      const categories = await CategoryService.getCategoriesByUserId(userId);
+      for (const cat of payload.categories) {
+        if (!cat.category_id && cat.category_name) {
+          const match = categories.find(
+            (c) => (c.name ?? '').toLowerCase() === (cat.category_name ?? '').toLowerCase()
+          );
+          if (match) {
+            cat.category_id = match.id;
+          } else {
+            return {
+              ...result,
+              data: payload,
+              status: 'AMBIGUOUS',
+              candidates: categories,
+              follow_up_question: `No encontré la categoría "${cat.category_name}" para el presupuesto. ¿Cuál categoría quieres usar en su lugar?`,
+            };
+          }
+        }
+      }
+    }
+    return { ...result, data: payload, status: 'READY' };
+  }
+
+  if (result.intent === 'UPDATE_BUDGET') {
+    let payload = result.data as UpdateBudgetPayload;
+    if (!payload.search) {
+      payload.search = {};
+    }
+    if (!payload.search.period) {
+      const now = new Date();
+      payload.search.period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+    if (payload.category_allocation && !payload.category_allocation.category_id && payload.category_allocation.category_name) {
+      const categories = await CategoryService.getCategoriesByUserId(userId);
+      const match = categories.find(
+        (c) => (c.name ?? '').toLowerCase() === (payload.category_allocation!.category_name ?? '').toLowerCase()
+      );
+      if (match) {
+        payload.category_allocation.category_id = match.id;
+      } else {
+        return {
+          ...result,
+          data: payload,
+          status: 'AMBIGUOUS',
+          candidates: categories,
+          follow_up_question: `No encontré la categoría "${payload.category_allocation.category_name}". ¿A cuál categoría de tu presupuesto quieres asignar este límite?`,
+        };
+      }
+    }
+    return { ...result, data: payload, status: 'READY' };
+  }
+
+  if (result.intent === 'DELETE_BUDGET') {
+    let payload = result.data as DeleteBudgetPayload;
+    if (!payload.search) {
+      payload.search = {};
+    }
+    if (!payload.search.period) {
+      const now = new Date();
+      payload.search.period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+    return {
+      ...result,
+      data: payload,
+      status: 'NEEDS_CONFIRMATION',
+      follow_up_question: `¿Confirmas que quieres eliminar el presupuesto del periodo ${payload.search.period}? Se borrarán todas sus asignaciones por categoría.`,
+    };
   }
 
   return { ...result, status: 'READY' };

@@ -18,6 +18,7 @@ export type BudgetCategoryCreationAttributes = Optional<{
   budget_id: string;
   category_id: string;
   allocated_amount: number;
+  original_allocated_amount?: number;
 }, 'id'>;
 
 @Table({
@@ -44,6 +45,10 @@ export class BudgetCategory extends Model<BudgetCategory, BudgetCategoryCreation
   @Default(0)
   @Column(DataType.DECIMAL)
   allocated_amount!: number;
+
+  @AllowNull(true)
+  @Column(DataType.DECIMAL)
+  original_allocated_amount?: number;
 
   @BelongsTo(() => Budget)
   budget?: Budget;

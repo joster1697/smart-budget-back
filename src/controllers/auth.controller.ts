@@ -91,6 +91,7 @@ export const refresh = async (req: Request, res: Response, next: NextFunction) =
       tokens
     });
   } catch (error) {
+    res.status(401);
     next(error);
   }
 };
