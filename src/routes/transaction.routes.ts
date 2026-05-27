@@ -2,7 +2,10 @@
 import { Router } from "express";
 import { authenticate } from "../middlewares/auth.middleware";
 import { validate } from "../middlewares/validate.middleware";
-import { createTransactionSchema, updateTransactionSchema } from "../validators/transaction.validators";
+import {
+  createTransactionSchema,
+  updateTransactionSchema,
+} from "../validators/transaction.validators";
 import {
   getUserTransactions,
   getTransactionById,
@@ -239,11 +242,20 @@ router.get("/", authenticate, getUserTransactions);
  */
 router.get("/:id", authenticate, getTransactionById);
 
-router.post("/", authenticate, validate(createTransactionSchema), createTransaction);
+router.post(
+  "/",
+  authenticate,
+  validate(createTransactionSchema),
+  createTransaction,
+);
 
-router.put("/:id", authenticate, validate(updateTransactionSchema), updateTransaction);
+router.put(
+  "/:id",
+  authenticate,
+  validate(updateTransactionSchema),
+  updateTransaction,
+);
 
 router.delete("/:id", authenticate, deleteTransaction);
 
 export default router;
-

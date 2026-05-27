@@ -19,6 +19,15 @@ export interface ITransactionFilters {
   limit?: number;
 }
 
+export interface IRestTransactionFilters {
+  account_id?: string;
+  category_id?: string;
+  type?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}
+
 // Interface para creación de transacciones
 export interface ITransactionCreate {
   user_id: string;
@@ -49,15 +58,44 @@ export class TransactionService {
   /**
    * Obtener todas las transacciones de un usuario
    */
-  static async getTransactionsByUserId(userId: string) {
+  static async getTransactionsByUserId(
+    userId: string,
+    filters?: IRestTransactionFilters,
+  ) {
+    const where: any = { user_id: userId };
+
+    if (filters) {
+      if (filters.account_id) where.account_id = filters.account_id;
+      if (filters.category_id) where.category_id = filters.category_id;
+      if (filters.type) where.type = filters.type;
+
+      if (filters.from || filters.to) {
+        const fromDate = filters.from ? new Date(filters.from) : new Date(0);
+        const toDate = filters.to
+          ? new Date(`${filters.to}T23:59:59.999`)
+          : new Date();
+        where.date = { [Op.between]: [fromDate, toDate] };
+      }
+    }
+
     return await Transaction.findAll({
-      where: { user_id: userId },
+      where,
       include: [
         {
           model: User,
           attributes: ["id", "name", "email"],
         },
+        {
+          model: Account,
+          attributes: ["id", "name"],
+        },
+        {
+          model: Category,
+          attributes: ["id", "name"],
+        },
       ],
+      order: [["date", "DESC"]],
+      limit: filters?.limit,
     });
   }
 
