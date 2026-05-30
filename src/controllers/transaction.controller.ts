@@ -20,8 +20,19 @@ export const getUserTransactions = async (
       return res.status(401).json({ message: "Usuario no autenticado" });
     }
 
-    const transactions =
-      await TransactionService.getTransactionsByUserId(userId);
+    const { account_id, category_id, type, from, to, limit } = req.query;
+
+    const transactions = await TransactionService.getTransactionsByUserId(
+      userId,
+      {
+        account_id: account_id as string,
+        category_id: category_id as string,
+        type: type as string,
+        from: from as string,
+        to: to as string,
+        limit: limit ? parseInt(limit as string, 10) : undefined,
+      },
+    );
     res.status(200).json({
       message: "Transacciones obtenidas exitosamente",
       transactions,
