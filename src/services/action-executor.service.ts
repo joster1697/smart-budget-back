@@ -13,7 +13,12 @@ import {
   UpdateAccountPayload,
   UpdateCategoryPayload,
   UpdatePayload,
+  CreateBudgetPayload,
+  UpdateBudgetPayload,
+  DeleteBudgetPayload,
 } from "../types/agent.types";
+import { BudgetService, BudgetCategoryInput } from "./budget.service";
+import { Budget } from "../database/models/budget";
 import { CategoryService } from "./category.service";
 import { TransactionService } from "./transaction.service";
 
@@ -204,6 +209,117 @@ export class ActionExecutorService {
             };
           await CategoryService.deleteCategory(action.resolved_id, userId);
           return { ok: true, message: "✅ Categoría eliminada." };
+        }
+
+        case "CREATE_BUDGET": {
+          const d = action.data as CreateBudgetPayload;
+          const period = d.period!;
+          const plannedIncome = d.planned_income || 0;
+          const categoriesInput: BudgetCategoryInput[] = (d.categories || [])
+            .filter(c => c && c.category_id)
+            .map(c => ({
+              category_id: c.category_id!,
+              allocated_amount: c.allocated_amount || 0
+            }));
+
+          try {
+            await BudgetService.createBudget(userId, period, plannedIncome, categoriesInput);
+            return {
+              ok: true,
+              message: `✅ Presupuesto para ${period} creado exitosamente en modo BORRADOR.\n• Ingresos proyectados: ₡${plannedIncome.toLocaleString("es-CR")}`
+            };
+          } catch (err: any) {
+            return {
+              ok: false,
+              message: err.message || "Error al crear el presupuesto."
+            };
+          }
+        }
+
+        case "UPDATE_BUDGET": {
+          const d = action.data as UpdateBudgetPayload;
+          const period = d.search.period!;
+          
+          let budget = await BudgetService.getBudgetByPeriod(userId, period);
+          if (!budget) {
+            budget = await BudgetService.createBudget(userId, period, 0, []);
+          }
+          if (!budget) {
+            return {
+              ok: false,
+              message: "No se pudo encontrar ni inicializar el presupuesto para este periodo."
+            };
+          }
+
+          const changes = d.changes || {};
+          let categoriesInput: BudgetCategoryInput[] | undefined = undefined;
+
+          if (d.category_allocation) {
+            const categoryId = d.category_allocation.category_id || action.resolved_id;
+            if (!categoryId) {
+              return {
+                ok: false,
+                message: "No se especificó una categoría válida para asignar el límite."
+              };
+            }
+
+            const existingCats = (budget.categories || [])
+              .filter(c => c.category_id && !c.category_id.startsWith("unbudgeted-"))
+              .map(c => ({
+                category_id: c.category_id,
+                allocated_amount: Number(c.allocated_amount || 0)
+              }));
+
+            const updatedCats = existingCats.filter(c => c.category_id !== categoryId);
+            updatedCats.push({
+              category_id: categoryId,
+              allocated_amount: d.category_allocation.allocated_amount
+            });
+
+            categoriesInput = updatedCats;
+          }
+
+          try {
+            await BudgetService.updateBudget(budget.id!, userId, {
+              planned_income: changes.planned_income,
+              status: changes.status,
+              categories: categoriesInput
+            });
+
+            let msg = `✅ Presupuesto de ${period} actualizado.`;
+            if (d.category_allocation) {
+              const catName = budget.categories?.find(c => c.category_id === (d.category_allocation!.category_id || action.resolved_id))?.category_name || "Categoría";
+              msg = `✅ Límite para "${catName}" establecido en ₡${d.category_allocation.allocated_amount.toLocaleString("es-CR")} en el presupuesto de ${period}.`;
+            } else if (changes.status === "ACTIVE") {
+              msg = `✅ Presupuesto de ${period} activado exitosamente.`;
+            } else if (changes.planned_income !== undefined) {
+              msg = `✅ Ingresos proyectados para ${period} actualizados a ₡${changes.planned_income.toLocaleString("es-CR")}.`;
+            }
+
+            return { ok: true, message: msg };
+          } catch (err: any) {
+            return {
+              ok: false,
+              message: err.message || "Error al actualizar el presupuesto."
+            };
+          }
+        }
+
+        case "DELETE_BUDGET": {
+          const d = action.data as DeleteBudgetPayload;
+          const period = d.search.period!;
+          const budgetRow = await Budget.findOne({ where: { user_id: userId, period } });
+          if (!budgetRow) {
+            return {
+              ok: false,
+              message: `No encontré ningún presupuesto configurado para ${period}.`
+            };
+          }
+          await budgetRow.destroy();
+          return {
+            ok: true,
+            message: `✅ Presupuesto para ${period} eliminado correctamente.`
+          };
         }
 
         case "QUERY":
@@ -411,6 +527,47 @@ export class ActionExecutorService {
         msg += `• Gastos:   ${sym}${totalExpenses.toLocaleString("es-CR")}\n`;
         msg += `• Ingresos: ${sym}${totalIncome.toLocaleString("es-CR")}\n`;
         msg += `• Balance neto: ${net >= 0 ? "+" : ""}${sym}${net.toLocaleString("es-CR")}`;
+        return { ok: true, message: msg };
+      }
+
+      case "BUDGET_SUMMARY": {
+        let period = "";
+        if (f.date_from) {
+          period = f.date_from.substring(0, 7);
+        } else {
+          const now = new Date();
+          period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+        }
+
+        const budget = await BudgetService.getBudgetByPeriod(userId, period);
+        if (!budget) {
+          return {
+            ok: true,
+            message: `No tienes un presupuesto configurado para ${period}. Puedes crearlo diciendo "crea un presupuesto para este mes con ingresos de..."`
+          };
+        }
+
+        const statusLabel = budget.status === "DRAFT" ? "🔴 BORRADOR" : "🟢 ACTIVO";
+        let msg = `📊 Resumen de tu Presupuesto (${period}) [${statusLabel}]\n\n`;
+        msg += `• Ingresos proyectados: ₡${Number(budget.planned_income).toLocaleString("es-CR")}\n`;
+        msg += `• Total presupuestado: ₡${Number(budget.total_allocated).toLocaleString("es-CR")}\n`;
+        msg += `• Disponible para asignar: ₡${Number(budget.available_to_budget).toLocaleString("es-CR")}\n`;
+        msg += `• Total gastado: ₡${Number(budget.total_spent).toLocaleString("es-CR")}\n\n`;
+
+        if (!budget.categories || budget.categories.length === 0) {
+          msg += "No tienes categorías configuradas en este presupuesto.";
+        } else {
+          msg += `Límites y Gastos por Categoría:\n`;
+          for (const cat of budget.categories) {
+            const allocated = Number(cat.allocated_amount || 0);
+            const spent = Number(cat.spent_amount || 0);
+            const pct = Math.round(cat.usage_percentage || 0);
+            const statusIcon = cat.is_exceeded ? "⚠️" : (pct >= 90 ? "🟡" : "✅");
+            
+            msg += `• ${statusIcon} ${cat.category_name}: ₡${spent.toLocaleString("es-CR")} / ₡${allocated.toLocaleString("es-CR")} (${pct}% gastado)\n`;
+          }
+        }
+
         return { ok: true, message: msg };
       }
 

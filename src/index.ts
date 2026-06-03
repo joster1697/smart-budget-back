@@ -13,6 +13,7 @@ import accountRoutes from "./routes/account.routes";
 import categoryRoutes from "./routes/category.routes";
 import transactionRoutes from "./routes/transaction.routes";
 import agentRoutes from "./routes/agent.routes";
+import budgetRoutes from "./routes/budget.routes";
 import { createAgentGateway } from "./gateway/agent.gateway";
 import { startTelegramBot, telegramWebhookCallback } from "./gateway/telegram.gateway";
 
@@ -46,6 +47,7 @@ async function startServer() {
     app.use("/api/categories", categoryRoutes);
     app.use("/api/transactions", transactionRoutes);
     app.use("/api/agent", agentRoutes);
+    app.use("/api/budgets", budgetRoutes);
 
     // Health Check
     app.get("/health", (req, res) => {

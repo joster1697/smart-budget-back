@@ -18,25 +18,13 @@ const SYSTEM_CATEGORIES = [
 
 module.exports = {
   async up(queryInterface: QueryInterface) {
-    const existing = await queryInterface.sequelize.query<{ name: string }>(
-      'SELECT name FROM categories WHERE user_id IS NULL',
-      { type: QueryTypes.SELECT },
+    // Eliminar las categorías globales (user_id IS NULL).
+    // Primero debemos eliminar las referencias en budget_categories para evitar errores de FK.
+    await queryInterface.sequelize.query(
+      'DELETE FROM budget_categories WHERE category_id IN (SELECT id FROM categories WHERE user_id IS NULL)'
     );
-    const existingNames = new Set(existing.map((r) => r.name));
-
-    const toInsert = SYSTEM_CATEGORIES
-      .filter((name) => !existingNames.has(name))
-      .map((name) => ({
-        id: uuidv4(),
-        name,
-        user_id: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }));
-
-    if (toInsert.length > 0) {
-      await queryInterface.bulkInsert('categories', toInsert);
-    }
+    
+    await queryInterface.bulkDelete('categories', { user_id: null } as any);
   },
 
   async down(queryInterface: QueryInterface) {

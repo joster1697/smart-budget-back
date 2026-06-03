@@ -22,6 +22,9 @@ export type {
   CreateCategoryPayload,
   UpdateCategoryPayload,
   DeleteCategoryPayload,
+  CreateBudgetPayload,
+  UpdateBudgetPayload,
+  DeleteBudgetPayload,
   QueryType,
   QueryFilters,
   QueryPayload,
@@ -79,7 +82,10 @@ INTENCIONES POSIBLES:
 - DELETE_ACCOUNT: el usuario quiere eliminar una cuenta (ej: "borra mi cuenta BAC", "elimina la cuenta de ahorros").
 - UPDATE_CATEGORY: el usuario quiere renombrar una categoría (ej: "cambia Comida a Alimentación", "renombra la categoría Gym a Gimnasio").
 - DELETE_CATEGORY: el usuario quiere eliminar una categoría (ej: "borra la categoría Mascotas", "elimina la categoría Gimnasio").
-- QUERY: el usuario hace una pregunta sobre sus finanzas (ej: "cuánto gasté este mes", "cuál es mi saldo").
+- CREATE_BUDGET: el usuario quiere crear un presupuesto para un periodo (ej: "crea un presupuesto para junio", "crea el presupuesto de este mes con ingresos planificados de 500000").
+- UPDATE_BUDGET: el usuario quiere modificar un presupuesto (ej: "cambia mis ingresos planificados a 600000 para este mes", "presupuesta 50000 para comida", "asigna 20000 a transporte en junio 2026", "activa mi presupuesto de este mes").
+- DELETE_BUDGET: el usuario quiere eliminar un presupuesto (ej: "borra mi presupuesto de junio 2026", "elimina el presupuesto de este mes").
+- QUERY: el usuario hace una pregunta sobre sus finanzas (ej: "cuánto gasté este mes", "cuál es mi saldo", "cuánto me queda de presupuesto").
 - GREETING: el usuario está saludando o iniciando una conversación sin pedir ninguna acción financiera (ej: "hola", "buenos días", "hey, ¿cómo estás?", "hi").
 
 REGLAS DE EXTRACCIÓN POR INTENCIÓN:
@@ -214,11 +220,59 @@ Para DELETE_CATEGORY, responde:
   }
 }
 
+Para CREATE_BUDGET, responde:
+{
+  "intent": "CREATE_BUDGET",
+  "data": {
+    "period": <"YYYY-MM", periodo del presupuesto a crear, o null si no se especifica (se asumirá el actual)>,
+    "planned_income": <ingreso proyectado/planificado como número positivo, ej: 500000, o 0 si no se menciona>,
+    "categories": [
+      // Lista opcional de asignaciones iniciales si el usuario las menciona en el texto.
+      // Si el texto del usuario NO menciona ninguna categoría, devuelve obligatoriamente un array vacío: "categories": []
+      {
+        "category_name": <nombre de la categoría>,
+        "allocated_amount": <monto asignado como número positivo>
+      }
+    ],
+    "confidence": <0 a 1>
+  }
+}
+
+Para UPDATE_BUDGET, responde:
+{
+  "intent": "UPDATE_BUDGET",
+  "data": {
+    "search": {
+      "period": <"YYYY-MM", periodo del presupuesto a modificar, o null para el mes actual>
+    },
+    "changes": {
+      "planned_income": <nuevo ingreso proyectado como número positivo, opcional>,
+      "status": <"DRAFT" o "ACTIVE", si el usuario indica activarlo o pasarlo a borrador, opcional>
+    },
+    "category_allocation": {
+      "category_name": <nombre de la categoría a la que se le asigna el límite, opcional>,
+      "allocated_amount": <monto límite asignado como número positivo, opcional>
+    },
+    "confidence": <0 a 1>
+  }
+}
+
+Para DELETE_BUDGET, responde:
+{
+  "intent": "DELETE_BUDGET",
+  "data": {
+    "search": {
+      "period": <"YYYY-MM", periodo del presupuesto a eliminar, o null para el mes actual>
+    },
+    "confidence": <0 a 1>
+  }
+}
+
 Para QUERY, responde:
 {
   "intent": "QUERY",
   "data": {
-    "query_type": <uno de: "LIST_TRANSACTIONS" | "LIST_ACCOUNTS" | "LIST_CATEGORIES" | "ACCOUNT_BALANCE" | "ACCOUNT_STATEMENT" | "SPENDING_SUMMARY">,
+    "query_type": <uno de: "LIST_TRANSACTIONS" | "LIST_ACCOUNTS" | "LIST_CATEGORIES" | "ACCOUNT_BALANCE" | "ACCOUNT_STATEMENT" | "SPENDING_SUMMARY" | "BUDGET_SUMMARY">,
     "filters": {
       "date_from": <"YYYY-MM-DD" fecha inicio del rango, opcional>,
       "date_to": <"YYYY-MM-DD" fecha fin del rango, opcional>,
@@ -249,6 +303,7 @@ CRITERIO PARA ELEGIR query_type:
 - ACCOUNT_BALANCE: el usuario pregunta por el saldo de una cuenta específica (ej: "cuál es el saldo de mi cuenta de ahorros", "cuánto tengo en mi tarjeta").
 - ACCOUNT_STATEMENT: el usuario quiere un resumen/estado de cuenta de una cuenta específica incluyendo transacciones recientes (ej: "dame el estado de cuenta de mi BAC", "estado de mi cuenta corriente").
 - SPENDING_SUMMARY: el usuario quiere un resumen de gastos/ingresos por período (ej: "cuánto gasté este mes", "resumen de gastos de la semana", "cuánto he gastado en comida").
+- BUDGET_SUMMARY: el usuario pregunta por el estado, saldo, disponible, o resumen general de su presupuesto mensual (ej: "cuánto me queda de presupuesto?", "cuál es mi presupuesto de este mes?", "dame un resumen del presupuesto", "cuánto he gastado de la categoría comida?").
 `;
 
 export class IngestionService {

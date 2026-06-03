@@ -48,15 +48,12 @@ const router = Router();
  *         application/json:
  *           schema:
  *             type: object
- *             required: [name, user_id]
+ *             required: [name]
  *             properties:
  *               name:
  *                 type: string
  *                 minLength: 2
  *                 maxLength: 100
- *               user_id:
- *                 type: string
- *                 format: uuid
  *     responses:
  *       '201':
  *         description: Categoría creada exitosamente
