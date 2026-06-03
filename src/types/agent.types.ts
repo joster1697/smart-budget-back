@@ -22,6 +22,9 @@ export const VALID_INTENTS = [
   'CREATE_CATEGORY',
   'UPDATE_CATEGORY',
   'DELETE_CATEGORY',
+  'CREATE_BUDGET',
+  'UPDATE_BUDGET',
+  'DELETE_BUDGET',
   'QUERY',
   'GREETING',
 ] as const;
@@ -132,7 +135,8 @@ export type QueryType =
   | 'LIST_CATEGORIES'
   | 'ACCOUNT_BALANCE'
   | 'ACCOUNT_STATEMENT'
-  | 'SPENDING_SUMMARY';
+  | 'SPENDING_SUMMARY'
+  | 'BUDGET_SUMMARY';
 
 export interface QueryFilters {
   date_from?: string;
@@ -153,6 +157,42 @@ export interface QueryPayload {
 }
 
 export interface GreetingPayload {
+  confidence: number;
+}
+
+// ─── Budget payloads ──────────────────────────────────────────────────────────
+
+export interface BudgetSearchCriteria {
+  period?: string;
+}
+
+export interface CreateBudgetPayload {
+  period?: string; // Formato: 'YYYY-MM'
+  planned_income: number;
+  categories?: {
+    category_id?: string;
+    category_name?: string;
+    allocated_amount: number;
+  }[];
+  confidence: number;
+}
+
+export interface UpdateBudgetPayload {
+  search: BudgetSearchCriteria;
+  changes: {
+    planned_income?: number;
+    status?: string;
+  };
+  category_allocation?: {
+    category_id?: string;
+    category_name?: string;
+    allocated_amount: number;
+  };
+  confidence: number;
+}
+
+export interface DeleteBudgetPayload {
+  search: BudgetSearchCriteria;
   confidence: number;
 }
 
@@ -185,5 +225,8 @@ export interface AgentParseResult {
     | CreateCategoryPayload
     | UpdateCategoryPayload
     | DeleteCategoryPayload
+    | CreateBudgetPayload
+    | UpdateBudgetPayload
+    | DeleteBudgetPayload
     | GreetingPayload;
 }

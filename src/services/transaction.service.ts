@@ -19,6 +19,15 @@ export interface ITransactionFilters {
   limit?: number;
 }
 
+export interface IRestTransactionFilters {
+  account_id?: string;
+  category_id?: string;
+  type?: string;
+  from?: string;
+  to?: string;
+  limit?: number;
+}
+
 // Interface para creación de transacciones
 export interface ITransactionCreate {
   user_id: string;
@@ -49,15 +58,44 @@ export class TransactionService {
   /**
    * Obtener todas las transacciones de un usuario
    */
-  static async getTransactionsByUserId(userId: string) {
+  static async getTransactionsByUserId(
+    userId: string,
+    filters?: IRestTransactionFilters,
+  ) {
+    const where: any = { user_id: userId };
+
+    if (filters) {
+      if (filters.account_id) where.account_id = filters.account_id;
+      if (filters.category_id) where.category_id = filters.category_id;
+      if (filters.type) where.type = filters.type;
+
+      if (filters.from || filters.to) {
+        const fromDate = filters.from ? new Date(filters.from) : new Date(0);
+        const toDate = filters.to
+          ? new Date(`${filters.to}T23:59:59.999`)
+          : new Date();
+        where.date = { [Op.between]: [fromDate, toDate] };
+      }
+    }
+
     return await Transaction.findAll({
-      where: { user_id: userId },
+      where,
       include: [
         {
           model: User,
           attributes: ["id", "name", "email"],
         },
+        {
+          model: Account,
+          attributes: ["id", "name"],
+        },
+        {
+          model: Category,
+          attributes: ["id", "name"],
+        },
       ],
+      order: [["date", "DESC"]],
+      limit: filters?.limit,
     });
   }
 
@@ -152,7 +190,29 @@ export class TransactionService {
         transactionData.type === "income"
           ? transactionData.amount
           : -transactionData.amount;
+
+      //Actualiza el balance real de la tarjeta
       await linkedAccount.increment("balance", { by: delta });
+
+      // Logica de Saldo Reservado(Escudo de Saldo)
+      // Si esta tarjeta esta vinculada a otra cuenta(ej:debito)
+      if (linkedAccount.account_linked) {
+        const debitAccount = await Account.findByPk(
+          linkedAccount.account_linked,
+        );
+        if (debitAccount) {
+          if (transactionData.type === "expense") {
+            //Si gastamos,la deuda crece -> Aumenta el saldo reservado en el debito
+            await debitAccount.increment("reserved_balance", {
+              by: transactionData.amount,
+            });
+          } else if (transactionData.type === "income") {
+            await debitAccount.decrement("reserved_balance", {
+              by: transactionData.amount,
+            });
+          }
+        }
+      }
     }
 
     return created;
@@ -233,7 +293,25 @@ export class TransactionService {
           transaction.type === "income"
             ? -Number(transaction.amount)
             : Number(transaction.amount);
+        //Revertir el balance real
         await account.increment("balance", { by: revertDelta });
+        // Revertir saldo reservado
+        if (account.account_linked) {
+          const debitAccount = await Account.findByPk(account.account_linked);
+          if (debitAccount) {
+            if (transaction.type === "expense") {
+              //Si borramos un gasto,la deuda desaparece -> Reduce el saldo reservado
+              await debitAccount.decrement("reserved_balance", {
+                by: Number(transaction.amount),
+              });
+            } else if (transaction.type === "income") {
+              // Si borramos un pago a la tarjeta, la deuda vuelve -> Sumamos al saldo reservado
+              await debitAccount.increment("reserved_balance", {
+                by: Number(transaction.amount),
+              });
+            }
+          }
+        }
       }
     }
 

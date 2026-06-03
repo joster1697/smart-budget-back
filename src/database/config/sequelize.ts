@@ -5,6 +5,7 @@ import { User } from '../models/user';
 import { Account } from '../models/account';
 import { Transaction } from '../models/transaction';
 import { Budget } from '../models/budget';
+import { BudgetCategory } from '../models/budget-category';
 import { Category } from '../models/category';
 
 dotenv.config();
@@ -32,7 +33,7 @@ const sequelize = new Sequelize({
 });
 
 // Agregar modelos manualmente después de crear la instancia
-sequelize.addModels([User, Account, Transaction, Budget, Category]);
+sequelize.addModels([User, Account, Transaction, Budget, BudgetCategory, Category]);
 
 // Función para inicializar la conexión
 export async function initializeDatabase() {

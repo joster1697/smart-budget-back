@@ -12,7 +12,7 @@ import {
 } from "sequelize-typescript";
 import { User } from "./user";
 import { Transaction } from "./transaction";
-import { Budget } from "./budget";
+import { BudgetCategory } from "./budget-category";
 import { Optional } from "sequelize";
 
 export type CategoryCreationAttributes = Optional<
@@ -48,6 +48,6 @@ export class Category extends Model<Category, CategoryCreationAttributes> {
   @HasMany(() => Transaction)
   transactions?: Transaction[];
 
-  @HasMany(() => Budget)
-  budgets?: Budget[];
+  @HasMany(() => BudgetCategory)
+  budget_categories?: BudgetCategory[];
 }

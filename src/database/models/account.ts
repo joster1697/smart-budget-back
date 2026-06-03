@@ -8,24 +8,28 @@ import {
   AllowNull,
   ForeignKey,
   BelongsTo,
-  HasMany
-} from 'sequelize-typescript';
-import { Optional } from 'sequelize';
-import { User } from './user';
-import { Transaction } from './transaction';
+  HasMany,
+} from "sequelize-typescript";
+import { Optional } from "sequelize";
+import { User } from "./user";
+import { Transaction } from "./transaction";
 
-export type AccountCreationAttributes = Optional<{
-  id?: string;
-  user_id: string;
-  name: string;
-  balance: number;
-  account_linked?: string;
-  type: string;
-}, 'id' | 'account_linked'>;
+export type AccountCreationAttributes = Optional<
+  {
+    id?: string;
+    user_id: string;
+    name: string;
+    balance: number;
+    reserved_balance?: number;
+    account_linked?: string;
+    type: string;
+  },
+  "id" | "account_linked" | "reserved_balance"
+>;
 
 @Table({
-  tableName: 'accounts',
-  timestamps: true
+  tableName: "accounts",
+  timestamps: true,
 })
 export class Account extends Model<Account, AccountCreationAttributes> {
   @PrimaryKey
@@ -45,6 +49,19 @@ export class Account extends Model<Account, AccountCreationAttributes> {
   @AllowNull(false)
   @Column(DataType.DECIMAL)
   balance!: number;
+
+  @AllowNull(false)
+  @Default(0)
+  @Column(DataType.DECIMAL)
+  reserved_balance!: number;
+
+  //Se crea un campo virtual que calcula el balance disponible para gastar.
+  @Column(DataType.VIRTUAL)
+  get available_balance(): number {
+    const balance = Number(this.getDataValue("balance") || 0);
+    const reserved = Number(this.getDataValue("reserved_balance") || 0);
+    return balance - reserved;
+  }
 
   @ForeignKey(() => Account)
   @AllowNull(true)
