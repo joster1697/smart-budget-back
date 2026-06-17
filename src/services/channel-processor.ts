@@ -17,6 +17,8 @@ import {
   CreateBudgetPayload,
   UpdateBudgetPayload,
   DeleteBudgetPayload,
+  LinkAccountPayload,
+  UnlinkAccountPayload,
 } from '../types/agent.types';
 import { TransactionService } from './transaction.service';
 import { AccountService } from './account.service';
@@ -242,6 +244,106 @@ async function resolveAction(userId: string, result: AgentParseResult): Promise<
       status: 'NEEDS_CONFIRMATION',
       follow_up_question: `¿Confirmas que quieres eliminar el presupuesto del periodo ${payload.search.period}? Se borrarán todas sus asignaciones por categoría.`,
     };
+  }
+
+  if (result.intent === 'LINK_ACCOUNT') {
+    let payload = result.data as LinkAccountPayload;
+    const accounts = await AccountService.getAccountsByUserId(userId);
+
+    // 1. Resolve source account (credit card)
+    if (!payload.account_id) {
+      if (payload.account_name) {
+        const matches = accounts.filter(a => a.name.toLowerCase().includes(payload.account_name!.toLowerCase()));
+        if (matches.length === 1) {
+          payload = { ...payload, account_id: matches[0].id, account_name: matches[0].name };
+        } else if (matches.length > 1) {
+          return { ...result, data: payload, status: 'AMBIGUOUS', candidates: matches, follow_up_question: `Encontré varias cuentas que coinciden con "${payload.account_name}". ¿Cuál tarjeta de crédito quieres vincular?` };
+        } else {
+          return { ...result, status: 'NEEDS_CLARIFICATION', follow_up_question: `No encontré ninguna cuenta llamada "${payload.account_name}". ¿Cómo se llama la tarjeta que quieres vincular?` };
+        }
+      } else {
+        const creditAccounts = accounts.filter(a => a.type === 'credit');
+        if (creditAccounts.length === 1) {
+          payload = { ...payload, account_id: creditAccounts[0].id, account_name: creditAccounts[0].name };
+        } else {
+          return { ...result, status: 'NEEDS_CLARIFICATION', follow_up_question: '¿Cuál tarjeta de crédito quieres vincular?' };
+        }
+      }
+    }
+
+    // 2. Resolve target account (checking/debit)
+    if (!payload.target_account_id) {
+      if (payload.target_account_name) {
+        const matches = accounts.filter(a => a.name.toLowerCase().includes(payload.target_account_name!.toLowerCase()));
+        if (matches.length === 1) {
+          payload = { ...payload, target_account_id: matches[0].id, target_account_name: matches[0].name };
+        } else if (matches.length > 1) {
+          return { ...result, data: payload, status: 'AMBIGUOUS', candidates: matches, follow_up_question: `Encontré varias cuentas que coinciden con "${payload.target_account_name}". ¿A cuál cuenta corriente/ahorros la quieres vincular?` };
+        } else {
+          return { ...result, status: 'NEEDS_CLARIFICATION', follow_up_question: `No encontré la cuenta de destino "${payload.target_account_name}". ¿A cuál cuenta la quieres vincular?` };
+        }
+      } else {
+        const debitAccounts = accounts.filter(a => a.type !== 'credit');
+        if (debitAccounts.length === 1) {
+          payload = { ...payload, target_account_id: debitAccounts[0].id, target_account_name: debitAccounts[0].name };
+        } else {
+          return { ...result, status: 'NEEDS_CLARIFICATION', follow_up_question: '¿A cuál cuenta de débito/corriente la quieres vincular?' };
+        }
+      }
+    }
+
+    // Since it's fully resolved, return NEEDS_CONFIRMATION to display the confirmation message
+    const sourceAcc = accounts.find(a => a.id === payload.account_id);
+    const targetAcc = accounts.find(a => a.id === payload.target_account_id);
+    if (sourceAcc && targetAcc) {
+      return {
+        ...result,
+        data: payload,
+        status: 'NEEDS_CONFIRMATION',
+        candidates: [sourceAcc, targetAcc],
+        follow_up_question: `¿Confirmas que quieres vincular la tarjeta "${sourceAcc.name}" a la cuenta "${targetAcc.name}"?`
+      };
+    }
+
+    return { ...result, data: payload, status: 'READY' };
+  }
+
+  if (result.intent === 'UNLINK_ACCOUNT') {
+    let payload = result.data as UnlinkAccountPayload;
+    const accounts = await AccountService.getAccountsByUserId(userId);
+
+    if (!payload.account_id) {
+      if (payload.account_name) {
+        const matches = accounts.filter(a => a.name.toLowerCase().includes(payload.account_name!.toLowerCase()));
+        if (matches.length === 1) {
+          payload = { ...payload, account_id: matches[0].id, account_name: matches[0].name };
+        } else if (matches.length > 1) {
+          return { ...result, data: payload, status: 'AMBIGUOUS', candidates: matches, follow_up_question: `Encontré varias cuentas que coinciden con "${payload.account_name}". ¿Cuál tarjeta de crédito quieres desvincular?` };
+        } else {
+          return { ...result, status: 'NEEDS_CLARIFICATION', follow_up_question: `No encontré ninguna cuenta llamada "${payload.account_name}". ¿Cómo se llama la tarjeta que quieres desvincular?` };
+        }
+      } else {
+        const linkedCreditAccounts = accounts.filter(a => a.type === 'credit' && a.account_linked);
+        if (linkedCreditAccounts.length === 1) {
+          payload = { ...payload, account_id: linkedCreditAccounts[0].id, account_name: linkedCreditAccounts[0].name };
+        } else {
+          return { ...result, status: 'NEEDS_CLARIFICATION', follow_up_question: '¿Cuál tarjeta de crédito quieres desvincular?' };
+        }
+      }
+    }
+
+    const sourceAcc = accounts.find(a => a.id === payload.account_id);
+    if (sourceAcc) {
+      return {
+        ...result,
+        data: payload,
+        status: 'NEEDS_CONFIRMATION',
+        candidates: [sourceAcc],
+        follow_up_question: `¿Confirmas que quieres desvincular la tarjeta "${sourceAcc.name}" de su cuenta principal?`
+      };
+    }
+
+    return { ...result, data: payload, status: 'READY' };
   }
 
   return { ...result, status: 'READY' };

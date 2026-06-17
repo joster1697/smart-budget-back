@@ -16,15 +16,20 @@ import {
   CreateBudgetPayload,
   UpdateBudgetPayload,
   DeleteBudgetPayload,
+  LinkAccountPayload,
+  UnlinkAccountPayload,
 } from "../types/agent.types";
 import { BudgetService, BudgetCategoryInput } from "./budget.service";
 import { Budget } from "../database/models/budget";
 import { CategoryService } from "./category.service";
 import { TransactionService } from "./transaction.service";
+import { Transaction } from "../database/models/transaction";
+import { Account } from "../database/models/account";
+import { Category } from "../database/models/category";
 
 export type ExecutionResult =
-  | { ok: true; message: string }
-  | { ok: false; message: string };
+  | { ok: true; message: string; data?: any }
+  | { ok: false; message: string; data?: undefined };
 
 // Acción enriquecida con el ID concreto que el usuario eligió/confirmó
 export type { ExecutableAction } from "../types/agent.types";
@@ -74,12 +79,28 @@ export class ActionExecutorService {
             notes: d.notes ?? undefined,
           });
 
+          const txWithAssociations = await Transaction.findByPk(createdTx.id, {
+            include: [
+              { model: Account, attributes: ["id", "name"] },
+              { model: Category, attributes: ["id", "name"] }
+            ]
+          });
+
           // Calcular saldo resultante (ya fue actualizado por TransactionService)
           const updatedAccount = await AccountService.getAccountById(
             accountId,
             userId,
           );
           const newBalance = Number(updatedAccount?.balance ?? 0);
+          
+          const accountsToUpdate: any[] = [];
+          if (updatedAccount) {
+            accountsToUpdate.push(updatedAccount);
+            if (updatedAccount.account_linked) {
+              const debitAccount = await AccountService.getAccountById(updatedAccount.account_linked, userId);
+              if (debitAccount) accountsToUpdate.push(debitAccount);
+            }
+          }
           
           const sym = createdTx.original_currency === "CRC" ? "₡" : (createdTx.original_currency || "₡");
           const isConverted = createdTx.original_currency && createdTx.original_currency !== "CRC";
@@ -100,12 +121,16 @@ export class ActionExecutorService {
           return {
             ok: true,
             message: `✅ Transacción registrada: ${sym}${Number(createdTx.original_amount || createdTx.amount).toLocaleString()}${convertedMsg}${merchant} — ${d.date}${balanceNote}`,
+            data: {
+              transactions: txWithAssociations ? [txWithAssociations] : [],
+              accounts: accountsToUpdate
+            }
           };
         }
 
         case "CREATE_ACCOUNT": {
           const d = action.data as CreateAccountPayload;
-          await AccountService.createAccount({
+          const created = await AccountService.createAccount({
             user_id: userId,
             name: d.name,
             type: d.type,
@@ -115,6 +140,9 @@ export class ActionExecutorService {
           return {
             ok: true,
             message: `✅ Cuenta "${d.name}" creada con saldo ${sym}${d.balance.toLocaleString()}`,
+            data: {
+              accounts: [created]
+            }
           };
         }
 
@@ -143,7 +171,21 @@ export class ActionExecutorService {
             userId,
             changes,
           );
-          return { ok: true, message: "✅ Transacción actualizada." };
+          const txWithAssociations = await Transaction.findByPk(action.resolved_id, {
+            include: [
+              { model: Account, attributes: ["id", "name"] },
+              { model: Category, attributes: ["id", "name"] }
+            ]
+          });
+          const accountsToUpdate = await AccountService.getAccountsByUserId(userId);
+          return {
+            ok: true,
+            message: "✅ Transacción actualizada.",
+            data: {
+              transactions: txWithAssociations ? [txWithAssociations] : [],
+              accounts: accountsToUpdate
+            }
+          };
         }
 
         case "DELETE_TRANSACTION": {
@@ -156,7 +198,15 @@ export class ActionExecutorService {
             action.resolved_id,
             userId,
           );
-          return { ok: true, message: "✅ Transacción eliminada." };
+          const accountsToUpdate = await AccountService.getAccountsByUserId(userId);
+          return {
+            ok: true,
+            message: "✅ Transacción eliminada.",
+            data: {
+              deletedTransactionId: action.resolved_id,
+              accounts: accountsToUpdate
+            }
+          };
         }
 
         case "UPDATE_ACCOUNT": {
@@ -171,7 +221,14 @@ export class ActionExecutorService {
             userId,
             d.changes,
           );
-          return { ok: true, message: "✅ Cuenta actualizada." };
+          const updatedAccount = await AccountService.getAccountById(action.resolved_id, userId);
+          return {
+            ok: true,
+            message: "✅ Cuenta actualizada.",
+            data: {
+              accounts: updatedAccount ? [updatedAccount] : []
+            }
+          };
         }
 
         case "DELETE_ACCOUNT": {
@@ -181,7 +238,13 @@ export class ActionExecutorService {
               message: "No se especificó qué cuenta eliminar.",
             };
           await AccountService.deleteAccount(action.resolved_id, userId);
-          return { ok: true, message: "✅ Cuenta eliminada." };
+          return {
+            ok: true,
+            message: "✅ Cuenta eliminada.",
+            data: {
+              deletedAccountId: action.resolved_id
+            }
+          };
         }
 
         case "UPDATE_CATEGORY": {
@@ -322,6 +385,64 @@ export class ActionExecutorService {
           };
         }
 
+        case "LINK_ACCOUNT": {
+          const d = action.data as LinkAccountPayload;
+          const accountId = d.account_id ?? action.resolved_id;
+          const targetAccountId = d.target_account_id;
+
+          if (!accountId || !targetAccountId) {
+            return {
+              ok: false,
+              message: "❌ Se requiere especificar la tarjeta de crédito y la cuenta destino a vincular.",
+            };
+          }
+
+          await AccountService.linkAccount(accountId, targetAccountId, userId);
+
+          const source = await AccountService.getAccountById(accountId, userId);
+          const target = await AccountService.getAccountById(targetAccountId, userId);
+
+          return {
+            ok: true,
+            message: `✅ Tarjeta de crédito "${source?.name}" vinculada con éxito a la cuenta "${target?.name}".\nSe ha activado el Escudo de Saldo.`,
+            data: {
+              accounts: [source, target].filter(Boolean)
+            }
+          };
+        }
+
+        case "UNLINK_ACCOUNT": {
+          const d = action.data as UnlinkAccountPayload;
+          const accountId = d.account_id ?? action.resolved_id;
+
+          if (!accountId) {
+            return {
+              ok: false,
+              message: "❌ Se requiere especificar la tarjeta de crédito a desvincular.",
+            };
+          }
+
+          const source = await AccountService.getAccountById(accountId, userId);
+          const oldTargetId = source?.account_linked;
+
+          await AccountService.unlinkAccount(accountId, userId);
+
+          const updatedSource = await AccountService.getAccountById(accountId, userId);
+          const accountsToUpdate = [updatedSource];
+          if (oldTargetId) {
+            const oldTarget = await AccountService.getAccountById(oldTargetId, userId);
+            if (oldTarget) accountsToUpdate.push(oldTarget);
+          }
+
+          return {
+            ok: true,
+            message: `✅ Tarjeta de crédito "${source?.name}" desvinculada con éxito.\nEl Escudo de Saldo ha sido desactivado.`,
+            data: {
+              accounts: accountsToUpdate.filter(Boolean)
+            }
+          };
+        }
+
         case "QUERY":
           return ActionExecutorService.executeQuery(
             action.data as QueryPayload,
@@ -403,7 +524,13 @@ export class ActionExecutorService {
           const sym = "₡";
           const bal = Number(a.balance).toLocaleString("es-CR");
           const tipo = typeLabel[a.type] ?? a.type;
-          return `• ${a.name} (${tipo}) — Saldo: ${sym}${bal}`;
+          let text = `• ${a.name} (${tipo}) — Saldo: ${sym}${bal}`;
+          if (a.reserved_balance && Number(a.reserved_balance) > 0) {
+            const avail = Number(a.available_balance).toLocaleString("es-CR");
+            const res = Number(a.reserved_balance).toLocaleString("es-CR");
+            text += ` (Saldo Virtual: ${sym}${avail} | Reservado: ${sym}${res})`;
+          }
+          return text;
         });
         return { ok: true, message: `🏦 Tus cuentas:\n${lines.join("\n")}` };
       }
@@ -422,9 +549,16 @@ export class ActionExecutorService {
           const accounts = await AccountService.getAccountsByUserId(userId);
           if (accounts.length === 0)
             return { ok: true, message: "No tienes cuentas registradas." };
-          const lines = accounts.map(
-            (a) => `• ${a.name}: ₡${Number(a.balance).toLocaleString("es-CR")}`,
-          );
+          const lines = accounts.map((a) => {
+            const sym = "₡";
+            const bal = Number(a.balance).toLocaleString("es-CR");
+            let text = `• ${a.name}: ₡${bal}`;
+            if (a.reserved_balance && Number(a.reserved_balance) > 0) {
+              const avail = Number(a.available_balance).toLocaleString("es-CR");
+              text += ` (Virtual: ₡${avail})`;
+            }
+            return text;
+          });
           return {
             ok: true,
             message: `💰 Saldos de tus cuentas:\n${lines.join("\n")}`,
@@ -436,7 +570,14 @@ export class ActionExecutorService {
         const label = isCredit
           ? `Deuda en ${resolvedAccount.name}`
           : `Saldo en ${resolvedAccount.name}`;
-        return { ok: true, message: `💰 ${label}: ${sym}${bal}` };
+
+        let text = `💰 ${label}: ${sym}${bal}`;
+        if (!isCredit && resolvedAccount.reserved_balance && Number(resolvedAccount.reserved_balance) > 0) {
+          const avail = Number(resolvedAccount.available_balance).toLocaleString("es-CR");
+          const res = Number(resolvedAccount.reserved_balance).toLocaleString("es-CR");
+          text += `\n⚠️ Saldo Virtual disponible: ${sym}${avail} (Tienes ${sym}${res} reservados para pagar tus tarjetas ligadas)`;
+        }
+        return { ok: true, message: text };
       }
 
       case "ACCOUNT_STATEMENT": {

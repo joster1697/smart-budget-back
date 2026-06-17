@@ -5,6 +5,7 @@ import { Transaction } from './transaction';
 import { Budget } from './budget';
 import { BudgetCategory } from './budget-category';
 import { Category } from './category';
+import { Debt } from './debt';
 
 // Los modelos ya están registrados en sequelize a través de la opción 'models'
 // en la configuración de Sequelize (sequelize.ts)
@@ -15,8 +16,10 @@ const models = {
   Transaction,
   Category,
   Budget,
-  BudgetCategory
+  BudgetCategory,
+  Debt
 };
 
 export { sequelize, models };
-export { User, Account, Transaction, Budget, BudgetCategory, Category };
+export { User, Account, Transaction, Budget, BudgetCategory, Category, Debt };
+

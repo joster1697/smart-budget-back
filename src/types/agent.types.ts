@@ -25,6 +25,8 @@ export const VALID_INTENTS = [
   'CREATE_BUDGET',
   'UPDATE_BUDGET',
   'DELETE_BUDGET',
+  'LINK_ACCOUNT',
+  'UNLINK_ACCOUNT',
   'QUERY',
   'GREETING',
 ] as const;
@@ -100,6 +102,20 @@ export interface UpdateAccountPayload {
 
 export interface DeleteAccountPayload {
   search: AccountSearchCriteria;
+  confidence: number;
+}
+
+export interface LinkAccountPayload {
+  account_id?: string | null;
+  account_name?: string | null;
+  target_account_id?: string | null;
+  target_account_name?: string | null;
+  confidence: number;
+}
+
+export interface UnlinkAccountPayload {
+  account_id?: string | null;
+  account_name?: string | null;
   confidence: number;
 }
 
@@ -222,6 +238,8 @@ export interface AgentParseResult {
     | CreateAccountPayload
     | UpdateAccountPayload
     | DeleteAccountPayload
+    | LinkAccountPayload
+    | UnlinkAccountPayload
     | CreateCategoryPayload
     | UpdateCategoryPayload
     | DeleteCategoryPayload

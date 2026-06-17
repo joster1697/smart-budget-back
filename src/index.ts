@@ -14,13 +14,48 @@ import categoryRoutes from "./routes/category.routes";
 import transactionRoutes from "./routes/transaction.routes";
 import agentRoutes from "./routes/agent.routes";
 import budgetRoutes from "./routes/budget.routes";
+import debtRoutes from "./routes/debt.routes";
 import { createAgentGateway } from "./gateway/agent.gateway";
 import { startTelegramBot, telegramWebhookCallback } from "./gateway/telegram.gateway";
+import path from "path";
+import fs from "fs";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Clean temp directory files older than 1 hour
+function startTempCleanupInterval() {
+  const TEMP_DIR = path.join(process.cwd(), "temp");
+  const ONE_HOUR = 60 * 60 * 1000;
+
+  // Run cleanup immediately on start, then every hour
+  const runCleanup = async () => {
+    try {
+      if (!fs.existsSync(TEMP_DIR)) return;
+      const files = await fs.promises.readdir(TEMP_DIR);
+      const now = Date.now();
+
+      for (const file of files) {
+        if (file.startsWith('.')) continue;
+        const filePath = path.join(TEMP_DIR, file);
+        const stats = await fs.promises.stat(filePath);
+        const age = now - stats.mtimeMs;
+
+        if (age > ONE_HOUR) {
+          await fs.promises.unlink(filePath);
+          console.log(`🧹 Cleaned up old temp file: ${file}`);
+        }
+      }
+    } catch (err) {
+      console.error("❌ Temp folder cleanup failed:", err);
+    }
+  };
+
+  runCleanup();
+  setInterval(runCleanup, ONE_HOUR);
+}
 
 // Telegram Webhook (antes del body parser)
 if (process.env.TELEGRAM_BOT_TOKEN) {
@@ -48,6 +83,7 @@ async function startServer() {
     app.use("/api/transactions", transactionRoutes);
     app.use("/api/agent", agentRoutes);
     app.use("/api/budgets", budgetRoutes);
+    app.use("/api/debts", debtRoutes);
 
     // Health Check
     app.get("/health", (req, res) => {
@@ -69,6 +105,9 @@ async function startServer() {
       console.log(`✅ Server is running on port ${PORT}`);
       console.log(`🛠️  Environment: ${process.env.NODE_ENV || 'development'}`);
     });
+
+    // Start background file cleanup
+    startTempCleanupInterval();
 
     if (process.env.TELEGRAM_BOT_TOKEN) {
       await startTelegramBot();

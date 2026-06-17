@@ -7,6 +7,8 @@ import {
   TransactionCreationAttributes,
 } from "../database/models/transaction";
 import { User } from "../database/models/user";
+import { Debt } from "../database/models/debt";
+import { DebtPaymentProcessor } from "./debt-payment-processor.service";
 import { TransactionSearchCriteria } from "./ai/ingestion.service";
 import { ExchangeRateService } from "./exchange-rate.service";
 
@@ -215,6 +217,18 @@ export class TransactionService {
       }
     }
 
+    // Hook to update debt balance if category is associated with a debt
+    if (transactionToCreate.category_id) {
+      const debt = await Debt.findOne({ where: { category_id: transactionToCreate.category_id } });
+      if (debt) {
+        if (transactionToCreate.type === "expense") {
+          await DebtPaymentProcessor.processPayment(debt.id, transactionToCreate.amount);
+        } else if (transactionToCreate.type === "income") {
+          await DebtPaymentProcessor.revertPayment(debt.id, transactionToCreate.amount);
+        }
+      }
+    }
+
     return created;
   }
 
@@ -244,24 +258,93 @@ export class TransactionService {
       }
     }
 
+    const oldAccountId = transaction.account_id;
+    const oldAmount = Number(transaction.amount ?? 0);
+    const oldType = transaction.type ?? "expense";
+    const oldCategoryId = transaction.category_id;
+
     await transaction.update(updateData);
 
-    // Recalcular el impacto en el saldo si cambia amount o type
-    if (updateData.amount !== undefined || updateData.type !== undefined) {
-      const oldAmount = Number(transaction.amount ?? 0);
-      const oldType = transaction.type ?? "expense";
-      const newAmount = updateData.amount ?? oldAmount;
+    const hasAccountIdChanged = updateData.account_id !== undefined && updateData.account_id !== oldAccountId;
+    const hasAmountChanged = updateData.amount !== undefined && Number(updateData.amount) !== oldAmount;
+    const hasTypeChanged = updateData.type !== undefined && updateData.type !== oldType;
+    const hasCategoryChanged = updateData.category_id !== undefined && updateData.category_id !== oldCategoryId;
+
+    if (hasAccountIdChanged || hasAmountChanged || hasTypeChanged) {
+      // 1. Revertir el saldo e impacto en la cuenta vieja
+      if (oldAccountId) {
+        const oldAccount = await Account.findByPk(oldAccountId);
+        if (oldAccount) {
+          const revertDelta = oldType === "income" ? -oldAmount : oldAmount;
+          await oldAccount.increment("balance", { by: revertDelta });
+
+          // Revertir el saldo reservado en la cuenta vinculada vieja
+          if (oldAccount.account_linked) {
+            const debitAccount = await Account.findByPk(oldAccount.account_linked);
+            if (debitAccount) {
+              if (oldType === "expense") {
+                await debitAccount.decrement("reserved_balance", { by: oldAmount });
+              } else if (oldType === "income") {
+                await debitAccount.increment("reserved_balance", { by: oldAmount });
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Aplicar el saldo e impacto a la cuenta nueva
+      const newAccountId = updateData.account_id ?? oldAccountId;
+      const newAmount = updateData.amount !== undefined ? Number(updateData.amount) : oldAmount;
       const newType = updateData.type ?? oldType;
 
-      const oldDelta = oldType === "income" ? oldAmount : -oldAmount;
-      const newDelta = newType === "income" ? newAmount : -newAmount;
-      const net = newDelta - oldDelta;
+      if (newAccountId) {
+        const newAccount = await Account.findByPk(newAccountId);
+        if (newAccount) {
+          const applyDelta = newType === "income" ? newAmount : -newAmount;
+          await newAccount.increment("balance", { by: applyDelta });
 
-      if (net !== 0) {
-        const accountId = updateData.account_id ?? transaction.account_id;
-        if (accountId) {
-          const account = await Account.findByPk(accountId);
-          if (account) await account.increment("balance", { by: net });
+          // Aplicar el saldo reservado en la cuenta vinculada nueva
+          if (newAccount.account_linked) {
+            const debitAccount = await Account.findByPk(newAccount.account_linked);
+            if (debitAccount) {
+              if (newType === "expense") {
+                await debitAccount.increment("reserved_balance", { by: newAmount });
+              } else if (newType === "income") {
+                await debitAccount.decrement("reserved_balance", { by: newAmount });
+              }
+            }
+          }
+        }
+      }
+    }
+
+    // Revert/Apply old/new debt payment impact
+    if (hasCategoryChanged || hasAmountChanged || hasTypeChanged) {
+      // 1. Revert old debt payment if old category had a debt
+      if (oldCategoryId) {
+        const oldDebt = await Debt.findOne({ where: { category_id: oldCategoryId } });
+        if (oldDebt) {
+          if (oldType === "expense") {
+            await DebtPaymentProcessor.revertPayment(oldDebt.id, oldAmount);
+          } else if (oldType === "income") {
+            await DebtPaymentProcessor.processPayment(oldDebt.id, oldAmount);
+          }
+        }
+      }
+
+      // 2. Apply new debt payment if new category has a debt
+      const newCategoryId = updateData.category_id !== undefined ? updateData.category_id : oldCategoryId;
+      const newAmount = updateData.amount !== undefined ? Number(updateData.amount) : oldAmount;
+      const newType = updateData.type ?? oldType;
+
+      if (newCategoryId) {
+        const newDebt = await Debt.findOne({ where: { category_id: newCategoryId } });
+        if (newDebt) {
+          if (newType === "expense") {
+            await DebtPaymentProcessor.processPayment(newDebt.id, newAmount);
+          } else if (newType === "income") {
+            await DebtPaymentProcessor.revertPayment(newDebt.id, newAmount);
+          }
         }
       }
     }
@@ -311,6 +394,18 @@ export class TransactionService {
               });
             }
           }
+        }
+      }
+    }
+
+    // Hook to revert debt payment if category is associated with a debt
+    if (transaction.category_id && transaction.amount != null && transaction.type) {
+      const debt = await Debt.findOne({ where: { category_id: transaction.category_id } });
+      if (debt) {
+        if (transaction.type === "expense") {
+          await DebtPaymentProcessor.revertPayment(debt.id, Number(transaction.amount));
+        } else if (transaction.type === "income") {
+          await DebtPaymentProcessor.processPayment(debt.id, Number(transaction.amount));
         }
       }
     }

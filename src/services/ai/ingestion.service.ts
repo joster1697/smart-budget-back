@@ -85,6 +85,8 @@ INTENCIONES POSIBLES:
 - CREATE_BUDGET: el usuario quiere crear un presupuesto para un periodo (ej: "crea un presupuesto para junio", "crea el presupuesto de este mes con ingresos planificados de 500000").
 - UPDATE_BUDGET: el usuario quiere modificar un presupuesto (ej: "cambia mis ingresos planificados a 600000 para este mes", "presupuesta 50000 para comida", "asigna 20000 a transporte en junio 2026", "activa mi presupuesto de este mes").
 - DELETE_BUDGET: el usuario quiere eliminar un presupuesto (ej: "borra mi presupuesto de junio 2026", "elimina el presupuesto de este mes").
+- LINK_ACCOUNT: el usuario quiere vincular una tarjeta de crédito a una cuenta de débito/ahorros (ej: "vincula mi tarjeta BAC a mi cuenta corriente", "liga la tarjeta BAC a mi débito").
+- UNLINK_ACCOUNT: el usuario quiere desvincular una tarjeta de crédito de su cuenta principal (ej: "desvincula mi tarjeta BAC", "quita el vínculo de mi tarjeta").
 - QUERY: el usuario hace una pregunta sobre sus finanzas (ej: "cuánto gasté este mes", "cuál es mi saldo", "cuánto me queda de presupuesto").
 - GREETING: el usuario está saludando o iniciando una conversación sin pedir ninguna acción financiera (ej: "hola", "buenos días", "hey, ¿cómo estás?", "hi").
 
@@ -216,6 +218,28 @@ Para DELETE_CATEGORY, responde:
     "search": {
       "name": <nombre de la categoría a eliminar>
     },
+    "confidence": <0 a 1>
+  }
+}
+
+Para LINK_ACCOUNT, responde:
+{
+  "intent": "LINK_ACCOUNT",
+  "data": {
+    "account_id": <UUID de la tarjeta de crédito/cuenta origen de la lista de cuentas, o null>,
+    "account_name": <nombre de la tarjeta de crédito a vincular, ej: "Tarjeta BAC", o null>,
+    "target_account_id": <UUID de la cuenta destino de la lista de cuentas, o null>,
+    "target_account_name": <nombre de la cuenta destino a vincular, ej: "Cuenta corriente", o null>,
+    "confidence": <0 a 1>
+  }
+}
+
+Para UNLINK_ACCOUNT, responde:
+{
+  "intent": "UNLINK_ACCOUNT",
+  "data": {
+    "account_id": <UUID de la tarjeta de crédito a desvincular de la lista de cuentas, o null>,
+    "account_name": <nombre de la tarjeta de crédito a desvincular, ej: "Tarjeta BAC", o null>,
     "confidence": <0 a 1>
   }
 }

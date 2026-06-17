@@ -98,7 +98,7 @@ async function handleMessage(ws: AgentSocket, raw: string) {
               { ...action, resolved_id: extractId(action.candidates) },
               userId,
             );
-            send(ws, { type: 'RESULT', payload: { actionIndex: i, message: result.message } });
+            send(ws, { type: 'RESULT', payload: { actionIndex: i, message: result.message, data: result.data } });
           }
         }
       } catch (err) {
@@ -116,7 +116,7 @@ async function handleMessage(ws: AgentSocket, raw: string) {
 
       const id = extractId(action.candidates);
       const result = await ActionExecutorService.execute({ ...action, resolved_id: id }, userId);
-      send(ws, { type: 'RESULT', payload: { actionIndex: p.actionIndex, message: result.message } });
+      send(ws, { type: 'RESULT', payload: { actionIndex: p.actionIndex, message: result.message, data: result.data } });
       break;
     }
 
@@ -139,7 +139,7 @@ async function handleMessage(ws: AgentSocket, raw: string) {
         sendInfo(ws, `¿Confirmas que quieres eliminar "${(candidate as { name?: string }).name ?? candidate.id}"?`);
       } else {
         const result = await ActionExecutorService.execute({ ...action, resolved_id: candidate.id }, userId);
-        send(ws, { type: 'RESULT', payload: { actionIndex: p.actionIndex, message: result.message } });
+        send(ws, { type: 'RESULT', payload: { actionIndex: p.actionIndex, message: result.message, data: result.data } });
       }
       break;
     }
@@ -180,7 +180,7 @@ async function handleMessage(ws: AgentSocket, raw: string) {
               { ...action, resolved_id: extractId(action.candidates) },
               userId,
             );
-            send(ws, { type: 'RESULT', payload: { actionIndex: i, message: result.message } });
+            send(ws, { type: 'RESULT', payload: { actionIndex: i, message: result.message, data: result.data } });
           }
         }
       } catch (err) {
