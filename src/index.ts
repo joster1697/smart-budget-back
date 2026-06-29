@@ -15,6 +15,8 @@ import transactionRoutes from "./routes/transaction.routes";
 import agentRoutes from "./routes/agent.routes";
 import budgetRoutes from "./routes/budget.routes";
 import debtRoutes from "./routes/debt.routes";
+import savingsRoutes from "./routes/savings.routes";
+import { SavingsService } from "./services/savings.service";
 import { createAgentGateway } from "./gateway/agent.gateway";
 import { startTelegramBot, telegramWebhookCallback } from "./gateway/telegram.gateway";
 import path from "path";
@@ -84,6 +86,7 @@ async function startServer() {
     app.use("/api/agent", agentRoutes);
     app.use("/api/budgets", budgetRoutes);
     app.use("/api/debts", debtRoutes);
+    app.use("/api/savings", savingsRoutes);
 
     // Health Check
     app.get("/health", (req, res) => {
@@ -108,6 +111,20 @@ async function startServer() {
 
     // Start background file cleanup
     startTempCleanupInterval();
+
+    // Start daily scheduled savings processor
+    const savingsService = new SavingsService();
+    const runSavingsSchedules = async () => {
+      try {
+        console.log("⏰ Iniciando procesamiento diario de ahorros programados...");
+        const result = await savingsService.processDueSchedules();
+        console.log(`⏰ Procesamiento de ahorros completado: ${result.processed} éxitos, ${result.failed} fallidos.`);
+      } catch (err) {
+        console.error("❌ Error en el procesamiento de ahorros programados:", err);
+      }
+    };
+    runSavingsSchedules();
+    setInterval(runSavingsSchedules, 24 * 60 * 60 * 1000);
 
     if (process.env.TELEGRAM_BOT_TOKEN) {
       await startTelegramBot();

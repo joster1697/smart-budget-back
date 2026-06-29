@@ -8,6 +8,8 @@ import { Budget } from '../models/budget';
 import { BudgetCategory } from '../models/budget-category';
 import { Category } from '../models/category';
 import { Debt } from '../models/debt';
+import { SavingsGoal } from '../models/savings-goal';
+import { SavingsSchedule } from '../models/savings-schedule';
 
 dotenv.config();
 
@@ -34,7 +36,7 @@ const sequelize = new Sequelize({
 });
 
 // Agregar modelos manualmente después de crear la instancia
-sequelize.addModels([User, Account, Transaction, Budget, BudgetCategory, Category, Debt]);
+sequelize.addModels([User, Account, Transaction, Budget, BudgetCategory, Category, Debt, SavingsGoal, SavingsSchedule]);
 
 // Función para inicializar la conexión
 export async function initializeDatabase() {

@@ -133,7 +133,8 @@ export const validateAndSaveDebt = async (
         remaining_terms: newDebt.remaining_terms,
         operation_number: opNumber,
         sync_budget: newDebt.sync_budget,
-        planned_extra_payment: newDebt.planned_extra_payment
+        planned_extra_payment: newDebt.planned_extra_payment,
+        category_id: newDebt.category_id
       },
     });
   } catch (error) {
@@ -176,6 +177,7 @@ export const getUserDebts = async (
         operation_number: opNum === "[DECRYPTION_ERROR]" ? "" : opNum,
         sync_budget: debt.sync_budget,
         planned_extra_payment: debt.planned_extra_payment,
+        category_id: debt.category_id,
         createdAt: debt.createdAt,
       };
     });
@@ -237,7 +239,8 @@ export const getDebtById = async (
         remaining_terms: debt.remaining_terms,
         operation_number: opNum === "[DECRYPTION_ERROR]" ? "" : opNum,
         sync_budget: debt.sync_budget,
-        planned_extra_payment: debt.planned_extra_payment
+        planned_extra_payment: debt.planned_extra_payment,
+        category_id: debt.category_id
       },
       schedule,
     });

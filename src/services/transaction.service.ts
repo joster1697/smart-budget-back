@@ -11,6 +11,7 @@ import { Debt } from "../database/models/debt";
 import { DebtPaymentProcessor } from "./debt-payment-processor.service";
 import { TransactionSearchCriteria } from "./ai/ingestion.service";
 import { ExchangeRateService } from "./exchange-rate.service";
+import { SavingsGoalProcessor } from "./savings-goal-processor.service";
 
 export interface ITransactionFilters {
   date_from?: string;
@@ -184,6 +185,17 @@ export class TransactionService {
       // notes: transactionData.notes,
     };
 
+    // Asociar meta de ahorro si corresponde
+    if (transactionToCreate.category_id) {
+      const associatedGoal = await SavingsGoalProcessor.findAssociatedGoal(
+        transactionToCreate.category_id,
+        transactionToCreate.user_id
+      );
+      if (associatedGoal) {
+        transactionToCreate.savings_goal_id = associatedGoal.id;
+      }
+    }
+
     const created = await Transaction.create(transactionToCreate);
 
     // Actualizar el saldo de la cuenta
@@ -229,6 +241,15 @@ export class TransactionService {
       }
     }
 
+    // Hook to update savings goal if category is associated with a savings goal
+    if (created.savings_goal_id) {
+      await SavingsGoalProcessor.processPayment(
+        created.savings_goal_id,
+        Number(created.amount || 0),
+        created.type || "expense"
+      );
+    }
+
     return created;
   }
 
@@ -262,6 +283,7 @@ export class TransactionService {
     const oldAmount = Number(transaction.amount ?? 0);
     const oldType = transaction.type ?? "expense";
     const oldCategoryId = transaction.category_id;
+    const oldSavingsGoalId = transaction.savings_goal_id;
 
     await transaction.update(updateData);
 
@@ -349,6 +371,34 @@ export class TransactionService {
       }
     }
 
+    // Revert/Apply old/new savings goal impact
+    if (hasCategoryChanged || hasAmountChanged || hasTypeChanged) {
+      // 1. Revert old savings goal payment if it was linked to a savings goal
+      if (oldSavingsGoalId) {
+        await SavingsGoalProcessor.revertPayment(oldSavingsGoalId, oldAmount, oldType);
+      }
+
+      // 2. Determine new category and check if it's associated with a savings goal
+      const newCategoryId = updateData.category_id !== undefined ? updateData.category_id : oldCategoryId;
+      const newAmount = updateData.amount !== undefined ? Number(updateData.amount) : oldAmount;
+      const newType = updateData.type ?? oldType;
+
+      if (newCategoryId) {
+        const associatedGoal = await SavingsGoalProcessor.findAssociatedGoal(newCategoryId, userId);
+        if (associatedGoal) {
+          // Link it and apply new payment
+          await transaction.update({ savings_goal_id: associatedGoal.id });
+          await SavingsGoalProcessor.processPayment(associatedGoal.id, newAmount, newType);
+        } else if (oldSavingsGoalId) {
+          // Unlink it
+          await transaction.update({ savings_goal_id: null as any });
+        }
+      } else if (oldSavingsGoalId) {
+        // Unlink it
+        await transaction.update({ savings_goal_id: null as any });
+      }
+    }
+
     return transaction;
   }
 
@@ -408,6 +458,15 @@ export class TransactionService {
           await DebtPaymentProcessor.processPayment(debt.id, Number(transaction.amount));
         }
       }
+    }
+
+    // Hook to revert savings goal payment if associated
+    if (transaction.savings_goal_id && transaction.amount != null && transaction.type) {
+      await SavingsGoalProcessor.revertPayment(
+        transaction.savings_goal_id,
+        Number(transaction.amount),
+        transaction.type || "expense"
+      );
     }
 
     await transaction.destroy();

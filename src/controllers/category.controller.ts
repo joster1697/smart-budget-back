@@ -139,7 +139,7 @@ export const deleteCategory = async (req: AuthRequest, res: Response, next: Next
       return res.status(401).json({ message: "Usuario no autenticado" });
     }
 
-    const result = CategoryService.deleteCategory(id, userId);
+    const result = await CategoryService.deleteCategory(id, userId);
 
     res.status(200).json(result);
   } catch (error) {

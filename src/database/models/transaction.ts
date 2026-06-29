@@ -12,6 +12,7 @@ import {
 import { User } from "./user";
 import { Account } from "./account";
 import { Category } from "./category";
+import { SavingsGoal } from "./savings-goal";
 import { Optional } from "sequelize";
 
 export type TransactionCreationAttributes = Optional<
@@ -29,8 +30,9 @@ export type TransactionCreationAttributes = Optional<
     original_currency?: string;
     original_amount?: number;
     exchange_rate?: number;
+    savings_goal_id?: string;
   },
-  "id" | "category_id"
+  "id" | "category_id" | "savings_goal_id"
 >;
 
 @Table({
@@ -60,6 +62,11 @@ export class Transaction extends Model<
   @AllowNull(true)
   @Column(DataType.UUID)
   category_id?: string;
+
+  @ForeignKey(() => SavingsGoal)
+  @AllowNull(true)
+  @Column(DataType.UUID)
+  savings_goal_id?: string;
 
   @AllowNull(true)
   @Column(DataType.DECIMAL)
@@ -105,4 +112,7 @@ export class Transaction extends Model<
 
   @BelongsTo(() => Category)
   category?: Category;
+
+  @BelongsTo(() => SavingsGoal)
+  savingsGoal?: SavingsGoal;
 }
